@@ -34,6 +34,20 @@ function authMiddleware(req, res, next) {
 }
 
 // ─── AUTH ROUTES ───
+// One-time setup route to create admin user
+app.get('/api/create-admin', async (req, res) => {
+  const hash = await bcrypt.hash('Kishor@123', 10);
+  await supabase.from('users').delete().eq('email', 'admin@kishorexports.com');
+  await supabase.from('users').insert({
+    name: 'Admin',
+    email: 'admin@kishorexports.com',
+    password_hash: hash,
+    role: 'senior_manager',
+    account_email: 'hi@kishorexports.com',
+    is_active: true
+  });
+  res.json({ message: 'Admin created!', password: 'Kishor@123' });
+});
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   const { data: user } = await supabase
