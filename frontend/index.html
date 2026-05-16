@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kishor Exports — Email Tracker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; }
+
+  /* LOGIN */
+  #loginPage {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%);
+  }
+  .login-box {
+    background: white; border-radius: 12px; padding: 40px; width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-box h1 { color: #1E3A5F; font-size: 22px; margin-bottom: 4px; }
+  .login-box p { color: #888; font-size: 13px; margin-bottom: 28px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 500; }
+  .form-group input {
+    width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+    font-size: 14px; transition: border-color 0.2s;
+  }
+  .form-group input:focus { outline: none; border-color: #2E86C1; }
+  .btn-login {
+    width: 100%; padding: 12px; background: #1E3A5F; color: white; border: none;
+    border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-login:hover { background: #2E86C1; }
+  .login-error { color: #e74c3c; font-size: 13px; margin-top: 10px; text-align: center; }
+
+  /* MAIN APP */
+  #app { display: none; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 230px;
+    background: #1E3A5F; color: white; padding: 0; z-index: 100;
+  }
+  .sidebar-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .sidebar-header h2 { font-size: 16px; font-weight: 700; }
+  .sidebar-header p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .sidebar-user { padding: 16px 20px; background: rgba(0,0,0,0.2); }
+  .sidebar-user .name { font-size: 13px; font-weight: 600; }
+  .sidebar-user .role { font-size: 11px; opacity: 0.7; text-transform: capitalize; }
+  .sidebar nav { padding: 12px 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+    cursor: pointer; font-size: 14px; transition: background 0.15s; border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.08); }
+  .nav-item.active { background: rgba(46,134,193,0.3); border-left-color: #2E86C1; }
+  .nav-item .icon { font-size: 16px; width: 20px; }
+  .btn-logout {
+    position: absolute; bottom: 20px; left: 20px; right: 20px;
+    padding: 10px; background: rgba(255,255,255,0.1); color: white; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 13px; transition: background 0.2s;
+  }
+  .btn-logout:hover { background: rgba(231,76,60,0.4); }
+
+  /* MAIN CONTENT */
+  .main { margin-left: 230px; padding: 28px; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; color: #1E3A5F; font-weight: 700; }
+  .page-header p { color: #888; font-size: 13px; margin-top: 4px; }
+
+  /* STAT CARDS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border-radius: 10px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #ddd;
+  }
+  .stat-card.blue { border-left-color: #2E86C1; }
+  .stat-card.green { border-left-color: #27AE60; }
+  .stat-card.orange { border-left-color: #E67E22; }
+  .stat-card.red { border-left-color: #E74C3C; }
+  .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 32px; font-weight: 700; color: #1E3A5F; margin-top: 6px; }
+
+  /* TABLE */
+  .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+  .card-header {
+    padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-header h3 { font-size: 15px; color: #1E3A5F; font-weight: 600; }
+  .filter-bar { display: flex; gap: 10px; align-items: center; }
+  .filter-bar select, .filter-bar input {
+    padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px;
+  }
+  .btn-refresh {
+    padding: 7px 16px; background: #2E86C1; color: white; border: none;
+    border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; background: #f8f9fa; }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+  tr:hover td { background: #fafbfc; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .badge.unreplied { background: #fde8e8; color: #e74c3c; }
+  .badge.replied { background: #e8f8ee; color: #27AE60; }
+  .badge.system { background: #f0f0f0; color: #888; }
+  .email-link { color: #2E86C1; text-decoration: none; font-size: 12px; }
+  .email-link:hover { text-decoration: underline; }
+  .pagination { padding: 16px 20px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+  .btn-page {
+    padding: 6px 12px; border: 1.5px solid #e0e0e0; background: white;
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  .btn-page.active { background: #1E3A5F; color: white; border-color: #1E3A5F; }
+  .loading { padding: 40px; text-align: center; color: #888; }
+  .empty { padding: 40px; text-align: center; color: #aaa; }
+
+  /* HIDDEN */
+  .hidden { display: none !important; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage">
+  <div class="login-box">
+    <h1>Kishor Exports</h1>
+    <p>Email Tracker & CRM — Internal Tool</p>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="loginEmail" placeholder="your@kishorexports.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error hidden" id="loginError">Invalid email or password</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>📧 Email Tracker</h2>
+      <p>Kishor Exports</p>
+    </div>
+    <div class="sidebar-user">
+      <div class="name" id="sidebarName">Loading...</div>
+      <div class="role" id="sidebarRole"></div>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('unreplied')">
+        <span class="icon">⚠️</span> Unreplied Emails
+      </div>
+      <div class="nav-item" onclick="showPage('all')">
+        <span class="icon">📬</span> All Emails
+      </div>
+      <div class="nav-item" id="navWeekly" onclick="showPage('weekly')">
+        <span class="icon">📈</span> Weekly Report
+      </div>
+    </nav>
+    <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="pageDashboard">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p id="dashSubtitle">Overview of email activity</p>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">Total Emails</div>
+          <div class="stat-value" id="statTotal">—</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">Received Today</div>
+          <div class="stat-value" id="statToday">—</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Replied</div>
+          <div class="stat-value" id="statReplied">—</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">Unreplied</div>
+          <div class="stat-value" id="statUnreplied">—</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>⚠️ Unreplied Emails (Latest 10)</h3>
+          <button class="btn-refresh" onclick="loadDashboard()">🔄 Refresh</button>
+        </div>
+        <div id="dashEmailList"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- UNREPLIED PAGE -->
+    <div class="page" id="pageUnreplied">
+      <div class="page-header">
+        <h1>Unreplied Emails</h1>
+        <p>Emails that need a reply</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Unreplied Emails</h3>
+          <div class="filter-bar">
+            <select id="filterAccount" onchange="loadUnreplied(1)"><option value="">All Accounts</option></select>
+            <button class="btn-refresh" onclick="loadUnreplied(1)">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="unrepliedList"><div class="loading">Loading...</div></div>
+        <div class="pagination" id="unrepliedPagination"></div>
+      </div>
+    </div>
+
+    <!-- ALL EMAILS PAGE -->
+    <div class="page" id="pageAll">
+      <div class="page-header">
+        <h1>All Emails</h1>
+        <p>Complete email history</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Email History</h3>
+          <div class="filter-bar">
+            <select id="filterStatus" onchange="loadAll(1)">
+              <option value="">All Status</option>
+              <option value="unreplied">Unreplied</option>
+              <option value="replied">Replied</option>
+              <option value="system_generated">System</option>
+            </select>
+            <button class="btn-refresh" onclick="loadAll(1)">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="allList"><div class="loading">Loading...</div></div>
+        <div class="pagination" id="allPagination"></div>
+      </div>
+    </div>
+
+    <!-- WEEKLY REPORT PAGE -->
+    <div class="page" id="pageWeekly">
+      <div class="page-header">
+        <h1>Weekly Report</h1>
+        <p>Last 7 days summary</p>
+      </div>
+      <div id="weeklyContent"><div class="loading">Loading...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('ke_token');
+let currentUser = JSON.parse(localStorage.getItem('ke_user') || 'null');
+
+// ─── AUTH ───
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('ke_token', token);
+    localStorage.setItem('ke_user', JSON.stringify(currentUser));
+    initApp();
+  } catch (err) {
+    document.getElementById('loginError').classList.remove('hidden');
+    document.getElementById('loginError').textContent = err.message;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('ke_token');
+  localStorage.removeItem('ke_user');
+  location.reload();
+}
+
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    ...opts,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...opts.headers }
+  });
+  if (res.status === 401) { logout(); return null; }
+  return res.json();
+}
+
+// ─── INIT ───
+function initApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sidebarName').textContent = currentUser.name;
+  document.getElementById('sidebarRole').textContent = currentUser.role.replace('_', ' ');
+  loadDashboard();
+  loadAgentFilter();
+}
+
+if (token && currentUser) initApp();
+
+// ─── NAVIGATION ───
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (page === 'unreplied') loadUnreplied(1);
+  if (page === 'all') loadAll(1);
+  if (page === 'weekly') loadWeekly();
+}
+
+// ─── DASHBOARD ───
+async function loadDashboard() {
+  const stats = await apiFetch('/api/stats');
+  if (!stats) return;
+
+  document.getElementById('statTotal').textContent = stats.total;
+  document.getElementById('statToday').textContent = stats.today;
+  document.getElementById('statReplied').textContent = stats.replied;
+  document.getElementById('statUnreplied').textContent = stats.unreplied;
+
+  const data = await apiFetch('/api/emails/unreplied?limit=10');
+  if (!data) return;
+
+  document.getElementById('dashEmailList').innerHTML = data.emails.length === 0
+    ? '<div class="empty">✅ No unreplied emails!</div>'
+    : renderEmailTable(data.emails);
+}
+
+// ─── UNREPLIED ───
+async function loadUnreplied(page = 1) {
+  document.getElementById('unrepliedList').innerHTML = '<div class="loading">Loading...</div>';
+  const account = document.getElementById('filterAccount')?.value || '';
+  const url = `/api/emails/unreplied?page=${page}&limit=20${account ? '&account=' + account : ''}`;
+  const data = await apiFetch(url);
+  if (!data) return;
+
+  document.getElementById('unrepliedList').innerHTML = data.emails.length === 0
+    ? '<div class="empty">✅ No unreplied emails!</div>'
+    : renderEmailTable(data.emails);
+
+  renderPagination('unrepliedPagination', page, data.total, 20, loadUnreplied);
+}
+
+// ─── ALL EMAILS ───
+async function loadAll(page = 1) {
+  document.getElementById('allList').innerHTML = '<div class="loading">Loading...</div>';
+  const status = document.getElementById('filterStatus')?.value || '';
+  const url = `/api/emails?page=${page}&limit=20${status ? '&status=' + status : ''}`;
+  const data = await apiFetch(url);
+  if (!data) return;
+
+  document.getElementById('allList').innerHTML = data.emails.length === 0
+    ? '<div class="empty">No emails found.</div>'
+    : renderEmailTable(data.emails, true);
+
+  renderPagination('allPagination', page, data.total, 20, loadAll);
+}
+
+// ─── WEEKLY REPORT ───
+async function loadWeekly() {
+  document.getElementById('weeklyContent').innerHTML = '<div class="loading">Loading...</div>';
+  const agents = await apiFetch('/api/agents');
+  if (!agents) return;
+
+  if (agents.length === 0 && currentUser.role === 'agent') {
+    // Show own report
+    const data = await apiFetch(`/api/report/weekly/${currentUser.account_email}`);
+    document.getElementById('weeklyContent').innerHTML = renderWeeklyCard(currentUser.name, currentUser.account_email, data);
+    return;
+  }
+
+  let html = '';
+  for (const agent of agents) {
+    const data = await apiFetch(`/api/report/weekly/${agent.account_email}`);
+    html += renderWeeklyCard(agent.name, agent.account_email, data);
+  }
+  document.getElementById('weeklyContent').innerHTML = html || '<div class="empty">No agents found.</div>';
+}
+
+function renderWeeklyCard(name, account, data) {
+  return `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <h3>📊 ${name} <span style="font-size:12px;color:#888;font-weight:400;">(${account})</span></h3>
+      <div style="display:flex;gap:16px;font-size:13px;">
+        <span style="color:#2E86C1;font-weight:600;">Total: ${data?.total || 0}</span>
+        <span style="color:#27AE60;font-weight:600;">Replied: ${data?.replied || 0}</span>
+        <span style="color:#E74C3C;font-weight:600;">Unreplied: ${data?.unreplied || 0}</span>
+      </div>
+    </div>
+    ${data?.unrepliedEmails?.length > 0 ? renderEmailTable(data.unrepliedEmails) : '<div class="empty">✅ All replied!</div>'}
+  </div>`;
+}
+
+// ─── HELPERS ───
+function renderEmailTable(emails, showStatus = false) {
+  return `<table>
+    <thead><tr>
+      <th>From</th><th>Subject</th><th>Account</th>
+      ${showStatus ? '<th>Status</th>' : ''}
+      <th>Received</th><th>Link</th>
+    </tr></thead>
+    <tbody>
+      ${emails.map(e => `<tr>
+        <td>
+          <div style="font-weight:500;">${e.sender_name || ''}</div>
+          <div style="color:#888;font-size:11px;">${e.sender_email || ''}</div>
+        </td>
+        <td style="max-width:250px;">
+          <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.subject || ''}</div>
+          <div style="color:#aaa;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.body_preview || ''}</div>
+        </td>
+        <td style="font-size:12px;color:#666;">${e.account || ''}</td>
+        ${showStatus ? `<td><span class="badge ${e.status}">${e.status}</span></td>` : ''}
+        <td style="white-space:nowrap;color:#666;">${e.received_at ? new Date(e.received_at).toLocaleDateString('en-IN') : ''}</td>
+        <td>${e.email_link ? `<a class="email-link" href="${e.email_link}" target="_blank">Open ↗</a>` : '—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderPagination(containerId, currentPage, total, limit, callback) {
+  const totalPages = Math.ceil(total / limit);
+  if (totalPages <= 1) { document.getElementById(containerId).innerHTML = ''; return; }
+
+  let html = `<span style="color:#888;font-size:13px;">${total} emails</span>`;
+  for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+    html += `<button class="btn-page ${i === currentPage ? 'active' : ''}" onclick="${callback.name}(${i})">${i}</button>`;
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
+
+async function loadAgentFilter() {
+  const agents = await apiFetch('/api/agents');
+  const sel = document.getElementById('filterAccount');
+  if (sel && agents?.length > 0) {
+    agents.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.account_email;
+      opt.textContent = `${a.name} (${a.account_email})`;
+      sel.appendChild(opt);
+    });
+  }
+}
+</script>
+</body>
+</html>
