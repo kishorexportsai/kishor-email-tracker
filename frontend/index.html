@@ -41,12 +41,13 @@
   .page-header { margin-bottom: 24px; }
   .page-header h1 { font-size: 22px; color: #1E3A5F; font-weight: 700; }
   .page-header p { color: #888; font-size: 13px; margin-top: 4px; }
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
   .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #ddd; }
   .stat-card.blue { border-left-color: #2E86C1; }
   .stat-card.green { border-left-color: #27AE60; }
   .stat-card.orange { border-left-color: #E67E22; }
   .stat-card.red { border-left-color: #E74C3C; }
+  .stat-card.purple { border-left-color: #8E44AD; }
   .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
   .stat-value { font-size: 32px; font-weight: 700; color: #1E3A5F; margin-top: 6px; }
   .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 20px; }
@@ -85,6 +86,7 @@
   .btn-save { padding: 5px 12px; background: #27AE60; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
   .btn-save:hover { background: #1e8449; }
   .btn-deactivate { padding: 5px 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
+  @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 16px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
@@ -133,6 +135,7 @@
   </div>
 
   <div class="main">
+
     <div class="page active" id="pageDashboard">
       <div class="page-header"><h1>Dashboard</h1><p>Overview of email activity</p></div>
       <div id="gmailBanner"></div>
@@ -140,6 +143,7 @@
         <div class="stat-card blue"><div class="stat-label">Total Emails</div><div class="stat-value" id="statTotal">—</div></div>
         <div class="stat-card orange"><div class="stat-label">Received Today</div><div class="stat-value" id="statToday">—</div></div>
         <div class="stat-card green"><div class="stat-label">Replied</div><div class="stat-value" id="statReplied">—</div></div>
+        <div class="stat-card purple"><div class="stat-label">Replied Today</div><div class="stat-value" id="statRepliedToday">—</div></div>
         <div class="stat-card red"><div class="stat-label">Unreplied</div><div class="stat-value" id="statUnreplied">—</div></div>
       </div>
       <div class="card">
@@ -201,6 +205,7 @@
         <div id="adminUserList"><div class="loading">Loading...</div></div>
       </div>
     </div>
+
   </div>
 </div>
 
@@ -275,6 +280,7 @@ async function loadDashboard() {
   document.getElementById('statTotal').textContent = stats.total;
   document.getElementById('statToday').textContent = stats.today;
   document.getElementById('statReplied').textContent = stats.replied;
+  document.getElementById('statRepliedToday').textContent = stats.repliedToday;
   document.getElementById('statUnreplied').textContent = stats.unreplied;
   const data = await apiFetch('/api/emails/unreplied?limit=10');
   if (!data) return;
@@ -350,7 +356,6 @@ async function toggleUser(userId, isActive) {
   loadAdminUsers();
 }
 
-// ── ✅ DATE + TIME FORMATTER ──────────────────────────────────────
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
