@@ -7,15 +7,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const { google } = require('googleapis');
-const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
-const { runGmailFetcher } = require('./gmailFetcher');
+const { runGmailFetcher, saveTokenToSupabase } = require('./gmailFetcher');
 const { sendDailyAgentReminders, sendDailyManagerReminders, sendWeeklyReports } = require('./reminderSender');
 
 const app = express();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const TOKENS_DIR = path.join(__dirname, '../tokens');
-if (!fs.existsSync(TOKENS_DIR)) fs.mkdirSync(TOKENS_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json());
@@ -66,7 +63,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ─── GOOGLE SIGN-IN (for staff) ─────────────────────────────────
-// Step 1: Redirect to Google
 app.get('/auth/google', (req, res) => {
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
@@ -78,7 +74,7 @@ app.get('/auth/google', (req, res) => {
       'email',
       'profile'
     ],
-    state: 'google_signin' // distinguish from connect-only flow
+    state: 'google_signin'
   });
   res.redirect(url);
 });
@@ -99,9 +95,6 @@ app.get('/auth/gmail/callback', async (req, res) => {
     const gmailAddress = googleUser.email;
     const googleName = googleUser.name;
 
-    // Save token file
-    fs.writeFileSync(path.join(TOKENS_DIR, `${gmailAddress}.json`), JSON.stringify(tokens));
-
     let dbUser;
 
     if (state === 'google_signin') {
@@ -110,8 +103,9 @@ app.get('/auth/gmail/callback', async (req, res) => {
         .select('*').eq('account_email', gmailAddress).single();
 
       if (existing) {
-        // Existing user — update token, return JWT
         dbUser = existing;
+        // Save token to Supabase for existing user
+        await saveTokenToSupabase(gmailAddress, tokens);
       } else {
         // New user — auto-create as agent
         const { data: created } = await supabase.from('users').insert({
@@ -120,7 +114,8 @@ app.get('/auth/gmail/callback', async (req, res) => {
           password_hash: '',
           role: 'agent',
           account_email: gmailAddress,
-          is_active: true
+          is_active: true,
+          gmail_token: JSON.stringify(tokens)  // ✅ save token in Supabase on create
         }).select().single();
         dbUser = created;
       }
@@ -132,7 +127,6 @@ app.get('/auth/gmail/callback', async (req, res) => {
       // Trigger email fetch
       setTimeout(() => runGmailFetcher().catch(console.error), 2000);
 
-      // Redirect to dashboard with token
       return res.send(`<!DOCTYPE html><html><head><title>Signing in...</title></head><body style="font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f0f4f8;">
         <div style="text-align:center;background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
           <div style="font-size:60px;">✅</div>
@@ -150,6 +144,8 @@ app.get('/auth/gmail/callback', async (req, res) => {
     } else {
       // ── CONNECT GMAIL FLOW (existing logged-in user) ──
       if (state) {
+        // Save token to Supabase for this user
+        await saveTokenToSupabase(gmailAddress, tokens);
         await supabase.from('users').update({ account_email: gmailAddress }).eq('email', state);
       }
       setTimeout(() => runGmailFetcher().catch(console.error), 2000);
@@ -185,18 +181,20 @@ app.get('/auth/gmail', (req, res) => {
       'https://www.googleapis.com/auth/gmail.metadata',
       'email', 'profile'
     ],
-    state: user.email // pass user email so we know who to update
+    state: user.email
   });
   res.redirect(url);
 });
 
 // ─── GMAIL STATUS ────────────────────────────────────────────────
 app.get('/api/gmail/status', authMiddleware, async (req, res) => {
-  // Re-fetch fresh user from DB to get latest account_email
-  const { data: user } = await supabase.from('users').select('account_email').eq('id', req.user.id).single();
+  const { data: user } = await supabase.from('users')
+    .select('account_email, gmail_token')
+    .eq('id', req.user.id).single();
   const account = user?.account_email || req.user.account_email;
   if (!account) return res.json({ connected: false });
-  const connected = fs.existsSync(path.join(TOKENS_DIR, `${account}.json`));
+  // Connected = token exists in Supabase
+  const connected = !!(user?.gmail_token);
   res.json({ connected, account });
 });
 
@@ -206,11 +204,9 @@ async function getAccountFilter(role, account_email, email) {
   if (role === 'manager') {
     const { data } = await supabase.from('users').select('account_email').eq('manager_email', email);
     const accounts = (data || []).map(a => a.account_email).filter(Boolean);
-    // Also include manager's own account
     if (account_email) accounts.push(account_email);
     return [...new Set(accounts)];
   }
-  // senior_manager: all accounts
   const { data } = await supabase.from('users').select('account_email').eq('is_active', true);
   return [...new Set((data || []).map(a => a.account_email).filter(Boolean))];
 }
@@ -252,6 +248,13 @@ app.get('/api/emails', authMiddleware, async (req, res) => {
   if (status) query = query.eq('status', status);
   const { data, count } = await query;
   res.json({ emails: data || [], total: count || 0 });
+});
+
+// ─── UPDATE EMAIL STATUS ─────────────────────────────────────────
+app.patch('/api/emails/:id/status', authMiddleware, async (req, res) => {
+  const { status } = req.body;
+  await supabase.from('emails').update({ status, updated_at: new Date().toISOString() }).eq('id', req.params.id);
+  res.json({ success: true });
 });
 
 // ─── AGENTS ──────────────────────────────────────────────────────
