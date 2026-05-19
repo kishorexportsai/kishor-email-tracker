@@ -112,7 +112,6 @@ async function fetchGmailEmails(accountEmail) {
   );
   oauth2Client.setCredentials(tokens);
 
-  // Auto-refresh and save updated token back to Supabase
   oauth2Client.on('tokens', async (newTokens) => {
     const updated = { ...tokens, ...newTokens };
     await saveTokenToSupabase(accountEmail, updated);
@@ -122,14 +121,11 @@ async function fetchGmailEmails(accountEmail) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   try {
-    // Fetch last 30 days of primary inbox emails
-    const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
-
+    // ✅ FIXED: labelIds only — no 'q' param (incompatible with metadata scope)
     const listRes = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
-      labelIds: ['INBOX'],
-      q: `category:primary after:${thirtyDaysAgo}`
+      labelIds: ['INBOX', 'CATEGORY_PERSONAL'],
     });
 
     const messages = listRes.data.messages || [];
@@ -193,11 +189,12 @@ async function fetchGmailEmails(accountEmail) {
 async function checkGmailReplies(accountEmail, gmail) {
   try {
     const since = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+
+    // ✅ FIXED: No 'q' param on sent list either
     const sentRes = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
       labelIds: ['SENT'],
-      q: `after:${since}`
     });
 
     const sentMessages = sentRes.data.messages || [];
@@ -208,7 +205,10 @@ async function checkGmailReplies(accountEmail, gmail) {
       const detail = await gmail.users.messages.get({
         userId: 'me', id: msg.id, format: 'minimal'
       });
-      if (detail.data.threadId) threadIds.push(detail.data.threadId);
+      const internalDate = parseInt(detail.data.internalDate || '0');
+      if (internalDate > since * 1000 && detail.data.threadId) {
+        threadIds.push(detail.data.threadId);
+      }
     }
 
     if (threadIds.length === 0) return;
@@ -239,7 +239,6 @@ async function checkGmailReplies(accountEmail, gmail) {
 
 // ── MAIN: FETCH ALL CONNECTED ACCOUNTS ───────────────────────────
 async function runGmailFetcher() {
-  // Get all connected accounts from Supabase users table
   const { data: users, error } = await supabase
     .from('users')
     .select('email, gmail_token')
@@ -250,10 +249,8 @@ async function runGmailFetcher() {
     return;
   }
 
-  // Also include any hardcoded accounts from env
   const envAccounts = (process.env.GMAIL_ACCOUNTS || '').split(',').map(e => e.trim()).filter(Boolean);
   const supabaseAccounts = (users || []).map(u => u.email);
-
   const allAccounts = [...new Set([...supabaseAccounts, ...envAccounts])];
 
   if (allAccounts.length === 0) {
