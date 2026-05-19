@@ -2,11 +2,8 @@
 require('dotenv').config();
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const TOKENS_DIR = path.join(__dirname, '../tokens');
 
 // ── SPAM / SYSTEM EMAIL DETECTION ────────────────────────────────
 const SYSTEM_SENDER_KEYWORDS = [
@@ -53,20 +50,13 @@ const GMAIL_LABELS_TO_SKIP = ['CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGO
 
 function isSystemGenerated(senderEmail, senderName, subject, labelIds = []) {
   const senderLower = (senderEmail || '').toLowerCase();
-  const nameLower = (senderName || '').toLowerCase();
   const subjectLower = (subject || '').toLowerCase();
 
-  // Check Gmail category labels
   if (labelIds.some(l => GMAIL_LABELS_TO_SKIP.includes(l))) return true;
 
-  // Check sender domain
   const domain = senderLower.split('@')[1] || '';
   if (SYSTEM_SENDER_DOMAINS.some(d => domain.includes(d))) return true;
-
-  // Check sender email keywords
   if (SYSTEM_SENDER_KEYWORDS.some(k => senderLower.includes(k))) return true;
-
-  // Check subject keywords
   if (SYSTEM_SUBJECT_KEYWORDS.some(k => subjectLower.includes(k))) return true;
 
   return false;
@@ -76,15 +66,45 @@ function getHeader(headers, name) {
   return headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
 }
 
-// ── FETCH EMAILS FOR ONE ACCOUNT ─────────────────────────────────
-async function fetchGmailEmails(accountEmail) {
-  const tokenFile = path.join(TOKENS_DIR, `${accountEmail}.json`);
-  if (!fs.existsSync(tokenFile)) {
-    console.log(`[Gmail] No token for ${accountEmail} — skipping`);
-    return 0;
+// ── TOKEN STORAGE IN SUPABASE ─────────────────────────────────────
+async function getTokenFromSupabase(accountEmail) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('gmail_token')
+    .eq('email', accountEmail)
+    .single();
+
+  if (error || !data || !data.gmail_token) {
+    console.log(`[Gmail] No token in Supabase for ${accountEmail}`);
+    return null;
   }
 
-  const tokens = JSON.parse(fs.readFileSync(tokenFile));
+  try {
+    return typeof data.gmail_token === 'string'
+      ? JSON.parse(data.gmail_token)
+      : data.gmail_token;
+  } catch {
+    console.log(`[Gmail] Invalid token JSON for ${accountEmail}`);
+    return null;
+  }
+}
+
+async function saveTokenToSupabase(accountEmail, tokens) {
+  const { error } = await supabase
+    .from('users')
+    .update({ gmail_token: JSON.stringify(tokens) })
+    .eq('email', accountEmail);
+
+  if (error) {
+    console.error(`[Gmail] Failed to save token for ${accountEmail}:`, error.message);
+  }
+}
+
+// ── FETCH EMAILS FOR ONE ACCOUNT ─────────────────────────────────
+async function fetchGmailEmails(accountEmail) {
+  const tokens = await getTokenFromSupabase(accountEmail);
+  if (!tokens) return 0;
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
@@ -92,24 +112,28 @@ async function fetchGmailEmails(accountEmail) {
   );
   oauth2Client.setCredentials(tokens);
 
-  // Auto-refresh token
-  oauth2Client.on('tokens', (newTokens) => {
+  // Auto-refresh and save updated token back to Supabase
+  oauth2Client.on('tokens', async (newTokens) => {
     const updated = { ...tokens, ...newTokens };
-    fs.writeFileSync(tokenFile, JSON.stringify(updated));
+    await saveTokenToSupabase(accountEmail, updated);
+    console.log(`[Gmail] Token refreshed and saved for ${accountEmail}`);
   });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   try {
-    // Only fetch PRIMARY inbox (excludes promotions/updates/social automatically)
+    // Fetch last 30 days of primary inbox emails
+    const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+
     const listRes = await gmail.users.messages.list({
       userId: 'me',
-      maxResults: 50,
+      maxResults: 100,
       labelIds: ['INBOX'],
-      q: 'category:primary'  // ← only primary tab emails
+      q: `category:primary after:${thirtyDaysAgo}`
     });
 
     const messages = listRes.data.messages || [];
+    console.log(`[Gmail] ${accountEmail}: Found ${messages.length} messages`);
     let saved = 0;
 
     for (const msg of messages) {
@@ -126,7 +150,6 @@ async function fetchGmailEmails(accountEmail) {
       const subject = getHeader(headers, 'Subject') || '(No Subject)';
       const date = getHeader(headers, 'Date');
 
-      // Parse sender
       const emailMatch = from.match(/<(.+)>/);
       const senderEmail = emailMatch ? emailMatch[1] : from;
       const senderName = from.replace(/<.+>/, '').trim().replace(/"/g, '');
@@ -156,7 +179,7 @@ async function fetchGmailEmails(accountEmail) {
       if (!error) saved++;
     }
 
-    console.log(`[Gmail] ${accountEmail}: ${saved} emails processed`);
+    console.log(`[Gmail] ${accountEmail}: ${saved} emails saved to Supabase`);
     await checkGmailReplies(accountEmail, gmail);
     return saved;
 
@@ -216,17 +239,22 @@ async function checkGmailReplies(accountEmail, gmail) {
 
 // ── MAIN: FETCH ALL CONNECTED ACCOUNTS ───────────────────────────
 async function runGmailFetcher() {
-  if (!fs.existsSync(TOKENS_DIR)) fs.mkdirSync(TOKENS_DIR, { recursive: true });
+  // Get all connected accounts from Supabase users table
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('email, gmail_token')
+    .not('gmail_token', 'is', null);
 
-  // Get all accounts that have token files (connected via OAuth)
-  const tokenFiles = fs.readdirSync(TOKENS_DIR).filter(f => f.endsWith('.json'));
-  const oauthAccounts = tokenFiles.map(f => f.replace('.json', ''));
+  if (error) {
+    console.error('[Gmail] Failed to fetch users from Supabase:', error.message);
+    return;
+  }
 
   // Also include any hardcoded accounts from env
   const envAccounts = (process.env.GMAIL_ACCOUNTS || '').split(',').map(e => e.trim()).filter(Boolean);
+  const supabaseAccounts = (users || []).map(u => u.email);
 
-  // Merge, deduplicate
-  const allAccounts = [...new Set([...oauthAccounts, ...envAccounts])];
+  const allAccounts = [...new Set([...supabaseAccounts, ...envAccounts])];
 
   if (allAccounts.length === 0) {
     console.log('[Gmail] No connected accounts found');
@@ -240,4 +268,4 @@ async function runGmailFetcher() {
   console.log('[Gmail] Done.');
 }
 
-module.exports = { runGmailFetcher };
+module.exports = { runGmailFetcher, saveTokenToSupabase };
