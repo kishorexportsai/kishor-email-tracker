@@ -162,7 +162,7 @@ async function fetchGmailEmails(accountEmail) {
         sender_email: senderEmail,
         subject: subject,
         body_preview: detail.data.snippet || '',
-        email_link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
+        email_link: `https://mail.google.com/mail/u/${accountEmail}/#inbox/${msg.id}`,
         received_at: receivedAt,
         status: systemGenerated ? 'system_generated' : 'unreplied',
         is_system_generated: systemGenerated
