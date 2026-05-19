@@ -54,8 +54,8 @@
   .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 20px; }
   .card-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   .card-header h3 { font-size: 15px; color: #1E3A5F; font-weight: 600; }
-  .card-header .total-badge { background: #e3f2fd; color: #1565C0; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-  .card-header .total-badge.red { background: #fde8e8; color: #e74c3c; }
+  .total-badge { background: #e3f2fd; color: #1565C0; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .total-badge.red { background: #fde8e8; color: #e74c3c; }
   .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .filter-bar select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; }
   .btn-refresh { padding: 7px 16px; background: #2E86C1; color: white; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
@@ -73,7 +73,6 @@
   .badge.unreplied { background: #fde8e8; color: #e74c3c; }
   .badge.replied { background: #e8f8ee; color: #27AE60; }
   .badge.system_generated { background: #f0f0f0; color: #888; }
-  .email-link { color: #2E86C1; text-decoration: none; font-size: 12px; }
   .pagination { padding: 16px 20px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
   .btn-page { padding: 6px 12px; border: 1.5px solid #e0e0e0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
   .btn-page.active { background: #1E3A5F; color: white; border-color: #1E3A5F; }
@@ -88,26 +87,30 @@
   .chart-container { padding: 20px; height: 260px; }
   .report-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px; }
   .report-stat { text-align: center; background: #f8f9fa; border-radius: 8px; padding: 16px; }
-  .report-stat .val { font-size: 28px; font-weight: 700; color: #1E3A5F; }
+  .report-stat .val { font-size: 28px; font-weight: 700; }
   .report-stat .lbl { font-size: 12px; color: #888; margin-top: 4px; }
 
-  /* ── EMAIL POPUP ── */
+  /* ── POPUP ── */
   .popup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
   .popup-overlay.open { display: block; }
-  .popup-panel { position: fixed; top: 0; right: -500px; width: 480px; height: 100vh; background: white; z-index: 201; box-shadow: -4px 0 30px rgba(0,0,0,0.15); transition: right 0.3s ease; display: flex; flex-direction: column; }
+  .popup-panel { position: fixed; top: 0; right: -520px; width: 500px; height: 100vh; background: white; z-index: 201; box-shadow: -4px 0 30px rgba(0,0,0,0.15); transition: right 0.3s ease; display: flex; flex-direction: column; }
   .popup-panel.open { right: 0; }
-  .popup-header { padding: 20px 24px; background: #1E3A5F; color: white; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .popup-header { padding: 20px 24px; background: #1E3A5F; color: white; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-shrink: 0; }
   .popup-header .subject { font-size: 15px; font-weight: 600; line-height: 1.4; flex: 1; }
   .popup-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; flex-shrink: 0; line-height: 1; }
   .popup-close:hover { opacity: 1; }
-  .popup-body { flex: 1; overflow-y: auto; padding: 24px; }
-  .popup-status-row { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-  .popup-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .popup-meta-item label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+  .popup-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .popup-status-row { display: flex; align-items: center; gap: 10px; }
+  .popup-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .popup-meta-item label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
   .popup-meta-item span { font-size: 13px; color: #333; font-weight: 500; word-break: break-all; }
-  .popup-preview-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .popup-preview { background: #f8f9fa; border-radius: 8px; padding: 16px; font-size: 13px; color: #555; line-height: 1.7; margin-bottom: 24px; border-left: 3px solid #2E86C1; }
-  .popup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .popup-body-section label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
+  .email-body-container { border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden; max-height: 400px; overflow-y: auto; }
+  .email-body-html { padding: 16px; font-size: 13px; line-height: 1.6; }
+  .email-body-html img { max-width: 100%; height: auto; }
+  .email-body-text { padding: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #444; background: #f8f9fa; }
+  .body-loading { padding: 24px; text-align: center; color: #888; font-size: 13px; }
+  .popup-actions { display: flex; gap: 10px; flex-wrap: wrap; flex-shrink: 0; padding-bottom: 8px; }
   .popup-actions a, .popup-actions button { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   .btn-open-gmail { background: #EA4335; color: white; }
   .btn-open-gmail:hover { background: #c62828; }
@@ -180,10 +183,7 @@
       <div class="page-header"><h1>Unreplied Emails</h1><p>Emails that need a reply</p></div>
       <div class="card">
         <div class="card-header">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <h3>Unreplied Emails</h3>
-            <span class="total-badge red" id="unrepliedTotalBadge">0</span>
-          </div>
+          <div style="display:flex;align-items:center;gap:12px;"><h3>Unreplied Emails</h3><span class="total-badge red" id="unrepliedTotalBadge">—</span></div>
           <div class="filter-bar">
             <select id="filterUnrepliedAccount" onchange="loadUnreplied(1)"><option value="">All Accounts</option></select>
             <button class="btn-refresh" onclick="loadUnreplied(1)">🔄 Refresh</button>
@@ -199,10 +199,7 @@
       <div class="page-header"><h1>All Emails</h1><p>Complete email history</p></div>
       <div class="card">
         <div class="card-header">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <h3>Email History</h3>
-            <span class="total-badge" id="allTotalBadge">0</span>
-          </div>
+          <div style="display:flex;align-items:center;gap:12px;"><h3>Email History</h3><span class="total-badge" id="allTotalBadge">—</span></div>
           <div class="filter-bar">
             <select id="filterAllAccount" onchange="loadAll(1)"><option value="">All Accounts</option></select>
             <select id="filterStatus" onchange="loadAll(1)">
@@ -260,18 +257,19 @@
     <button class="popup-close" onclick="closePopup()">×</button>
   </div>
   <div class="popup-body">
-    <div class="popup-status-row">
-      <span id="popupStatusBadge" class="badge">—</span>
-      <span id="popupAccount" style="font-size:12px;color:#888;"></span>
-    </div>
+    <div class="popup-status-row"><span id="popupStatusBadge" class="badge">—</span></div>
     <div class="popup-meta">
       <div class="popup-meta-item"><label>From</label><span id="popupSenderName">—</span></div>
       <div class="popup-meta-item"><label>Email</label><span id="popupSenderEmail">—</span></div>
       <div class="popup-meta-item"><label>Received</label><span id="popupReceived">—</span></div>
       <div class="popup-meta-item"><label>Account</label><span id="popupAccountMeta">—</span></div>
     </div>
-    <div class="popup-preview-label">Preview</div>
-    <div class="popup-preview" id="popupPreview">—</div>
+    <div class="popup-body-section">
+      <label>Email Content</label>
+      <div class="email-body-container" id="emailBodyContainer">
+        <div class="body-loading">Loading email content...</div>
+      </div>
+    </div>
     <div class="popup-actions" id="popupActions"></div>
   </div>
 </div>
@@ -280,8 +278,7 @@
 let token = localStorage.getItem('ke_token');
 let currentUser = JSON.parse(localStorage.getItem('ke_user') || 'null');
 let currentEmailId = null;
-let weeklyCharts = {};
-let monthlyCharts = {};
+let activeCharts = [];
 
 function signInWithGoogle() { window.location.href = '/auth/google'; }
 
@@ -341,6 +338,7 @@ function showPage(page, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
   if (el) el.classList.add('active');
+  activeCharts.forEach(c => c.destroy()); activeCharts = [];
   if (page === 'unreplied') loadUnreplied(1);
   if (page === 'all') loadAll(1);
   if (page === 'weekly') loadWeekly();
@@ -349,7 +347,6 @@ function showPage(page, el) {
   if (page === 'reminders') loadReminderLogs();
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────────
 async function loadDashboard() {
   const stats = await apiFetch('/api/stats');
   if (!stats) return;
@@ -365,7 +362,6 @@ async function loadDashboard() {
     : renderEmailTable(data.emails, false);
 }
 
-// ── UNREPLIED ─────────────────────────────────────────────────────
 async function loadUnreplied(page = 1) {
   document.getElementById('unrepliedList').innerHTML = '<div class="loading">Loading...</div>';
   const account = document.getElementById('filterUnrepliedAccount')?.value || '';
@@ -378,7 +374,6 @@ async function loadUnreplied(page = 1) {
   renderPagination('unrepliedPagination', page, data.total, 20, loadUnreplied);
 }
 
-// ── ALL EMAILS ────────────────────────────────────────────────────
 async function loadAll(page = 1) {
   document.getElementById('allList').innerHTML = '<div class="loading">Loading...</div>';
   const account = document.getElementById('filterAllAccount')?.value || '';
@@ -392,46 +387,42 @@ async function loadAll(page = 1) {
   renderPagination('allPagination', page, data.total, 20, loadAll);
 }
 
-// ── WEEKLY REPORT ─────────────────────────────────────────────────
 async function loadWeekly() {
   document.getElementById('weeklyContent').innerHTML = '<div class="loading">Loading...</div>';
+  let list = [];
   const agents = await apiFetch('/api/agents');
-  if (!agents) return;
-  const list = agents.length > 0 ? agents : [{ name: currentUser.name, account_email: currentUser.account_email }];
-  let html = '';
-  const dataMap = {};
+  if (agents && agents.length > 0) { list = agents; }
+  else { const me = await apiFetch('/api/me'); if (me?.account_email) list = [{ name: me.name, account_email: me.account_email }]; }
+  if (!list.length) { document.getElementById('weeklyContent').innerHTML = '<div class="empty">No account connected.</div>'; return; }
+  let html = ''; const dataMap = {};
   for (const agent of list) {
     const data = await apiFetch(`/api/report/weekly/${agent.account_email}`);
     dataMap[agent.account_email] = data;
     html += renderReportCard('weekly', agent, data);
   }
-  document.getElementById('weeklyContent').innerHTML = html || '<div class="empty">No data.</div>';
-  for (const agent of list) {
-    renderChart('weekly', agent.account_email, dataMap[agent.account_email]?.daily || {});
-  }
+  document.getElementById('weeklyContent').innerHTML = html;
+  for (const agent of list) renderChart('weekly', agent.account_email, dataMap[agent.account_email]?.daily || {});
 }
 
-// ── MONTHLY REPORT ────────────────────────────────────────────────
 async function loadMonthly() {
   document.getElementById('monthlyContent').innerHTML = '<div class="loading">Loading...</div>';
+  let list = [];
   const agents = await apiFetch('/api/agents');
-  if (!agents) return;
-  const list = agents.length > 0 ? agents : [{ name: currentUser.name, account_email: currentUser.account_email }];
-  let html = '';
-  const dataMap = {};
+  if (agents && agents.length > 0) { list = agents; }
+  else { const me = await apiFetch('/api/me'); if (me?.account_email) list = [{ name: me.name, account_email: me.account_email }]; }
+  if (!list.length) { document.getElementById('monthlyContent').innerHTML = '<div class="empty">No account connected.</div>'; return; }
+  let html = ''; const dataMap = {};
   for (const agent of list) {
     const data = await apiFetch(`/api/report/monthly/${agent.account_email}`);
     dataMap[agent.account_email] = data;
     html += renderReportCard('monthly', agent, data);
   }
-  document.getElementById('monthlyContent').innerHTML = html || '<div class="empty">No data.</div>';
-  for (const agent of list) {
-    renderChart('monthly', agent.account_email, dataMap[agent.account_email]?.weekly || {});
-  }
+  document.getElementById('monthlyContent').innerHTML = html;
+  for (const agent of list) renderChart('monthly', agent.account_email, dataMap[agent.account_email]?.weekly || {});
 }
 
 function renderReportCard(type, agent, data) {
-  const safeId = agent.account_email.replace(/[@.]/g, '_');
+  const safeId = (agent.account_email || '').replace(/[@.]/g, '_');
   return `<div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <h3>📊 ${agent.name} <span style="font-size:12px;color:#888;font-weight:400;">(${agent.account_email})</span></h3>
@@ -442,35 +433,31 @@ function renderReportCard(type, agent, data) {
       <div class="report-stat"><div class="val" style="color:#E74C3C;">${data?.unreplied||0}</div><div class="lbl">Unreplied</div></div>
     </div>
     <div class="chart-container"><canvas id="chart_${type}_${safeId}"></canvas></div>
-    ${data?.unrepliedEmails?.length > 0 ? `<div style="padding:0 20px 20px;"><strong style="font-size:13px;color:#E74C3C;">⚠️ Unreplied Emails</strong></div>${renderEmailTable(data.unrepliedEmails, false)}` : '<div class="empty" style="padding:20px;">✅ All replied!</div>'}
+    ${data?.unrepliedEmails?.length > 0
+      ? `<div style="padding:12px 20px;"><strong style="font-size:13px;color:#E74C3C;">⚠️ Unreplied Emails</strong></div>${renderEmailTable(data.unrepliedEmails, false)}`
+      : '<div class="empty" style="padding:20px 20px 24px;">✅ All replied!</div>'}
   </div>`;
 }
 
 function renderChart(type, accountEmail, dataMap) {
-  const safeId = accountEmail.replace(/[@.]/g, '_');
+  const safeId = (accountEmail || '').replace(/[@.]/g, '_');
   const canvas = document.getElementById(`chart_${type}_${safeId}`);
   if (!canvas) return;
   const labels = Object.keys(dataMap);
-  const received = labels.map(k => dataMap[k].received);
-  const replied = labels.map(k => dataMap[k].replied);
-  new Chart(canvas, {
+  const chart = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        { label: 'Received', data: received, backgroundColor: 'rgba(46,134,193,0.7)', borderRadius: 4 },
-        { label: 'Replied', data: replied, backgroundColor: 'rgba(39,174,96,0.7)', borderRadius: 4 }
+        { label: 'Received', data: labels.map(k => dataMap[k].received), backgroundColor: 'rgba(46,134,193,0.75)', borderRadius: 4 },
+        { label: 'Replied', data: labels.map(k => dataMap[k].replied), backgroundColor: 'rgba(39,174,96,0.75)', borderRadius: 4 }
       ]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top' } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
   });
+  activeCharts.push(chart);
 }
 
-// ── ADMIN USERS ───────────────────────────────────────────────────
 async function loadAdminUsers() {
   document.getElementById('adminUserList').innerHTML = '<div class="loading">Loading...</div>';
   const users = await apiFetch('/api/admin/users');
@@ -495,8 +482,7 @@ async function loadAdminUsers() {
 }
 
 async function saveUserRole(userId) {
-  const role = document.getElementById(`role-${userId}`).value;
-  await apiFetch(`/api/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) });
+  await apiFetch(`/api/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify({ role: document.getElementById(`role-${userId}`).value }) });
   alert('Role updated!');
 }
 
@@ -505,46 +491,75 @@ async function toggleUser(userId, isActive) {
   loadAdminUsers();
 }
 
-// ── REMINDER LOGS ─────────────────────────────────────────────────
 async function loadReminderLogs() {
   document.getElementById('reminderLogList').innerHTML = '<div class="loading">Loading...</div>';
   const logs = await apiFetch('/api/admin/reminder-logs');
   if (!logs || logs.length === 0) { document.getElementById('reminderLogList').innerHTML = '<div class="empty">No reminder logs found.</div>'; return; }
-  const html = `<table><thead><tr><th>Sent To</th><th>Type</th><th>Unreplied Count</th><th>Sent At</th></tr></thead>
+  document.getElementById('reminderLogList').innerHTML = `<table><thead><tr><th>Sent To</th><th>Type</th><th>Unreplied Count</th><th>Sent At</th></tr></thead>
     <tbody>${logs.map(l => `<tr>
       <td>${l.sent_to||'—'}</td>
       <td><span class="badge replied">${l.type||'daily'}</span></td>
       <td style="font-weight:600;color:#e74c3c;">${l.unreplied_count||0}</td>
       <td>${formatDateTime(l.sent_at)}</td>
     </tr>`).join('')}</tbody></table>`;
-  document.getElementById('reminderLogList').innerHTML = html;
 }
 
-// ── EMAIL POPUP ───────────────────────────────────────────────────
-function openPopup(email) {
+// ── POPUP ─────────────────────────────────────────────────────────
+async function openPopup(email) {
   currentEmailId = email.id;
+
   document.getElementById('popupSubject').textContent = email.subject || '(No Subject)';
   document.getElementById('popupSenderName').textContent = email.sender_name || '—';
   document.getElementById('popupSenderEmail').textContent = email.sender_email || '—';
   document.getElementById('popupReceived').textContent = email.received_at ? new Date(email.received_at).toLocaleString('en-IN') : '—';
   document.getElementById('popupAccountMeta').textContent = email.account || '—';
-  document.getElementById('popupAccount').textContent = email.account || '';
-  document.getElementById('popupPreview').textContent = email.body_preview || 'No preview available.';
+
   const badge = document.getElementById('popupStatusBadge');
   badge.className = `badge ${email.status}`;
   badge.textContent = email.status === 'unreplied' ? '⚠️ Unreplied' : email.status === 'replied' ? '✅ Replied' : '🤖 System';
 
   const actions = document.getElementById('popupActions');
   let btns = email.email_link ? `<a class="btn-open-gmail" href="${email.email_link}" target="_blank">📧 Open in Gmail</a>` : '';
-  if (email.status === 'unreplied') {
-    btns += `<button class="btn-mark-replied" onclick="markStatus('replied')">✅ Mark as Replied</button>`;
-  } else if (email.status === 'replied') {
-    btns += `<button class="btn-mark-unreplied" onclick="markStatus('unreplied')">↩️ Mark as Unreplied</button>`;
-  }
+  if (email.status === 'unreplied') btns += `<button class="btn-mark-replied" onclick="markStatus('replied')">✅ Mark as Replied</button>`;
+  else if (email.status === 'replied') btns += `<button class="btn-mark-unreplied" onclick="markStatus('unreplied')">↩️ Mark as Unreplied</button>`;
   actions.innerHTML = btns;
 
+  // Show popup immediately with loading state
+  document.getElementById('emailBodyContainer').innerHTML = '<div class="body-loading">⏳ Loading email content...</div>';
   document.getElementById('popupOverlay').classList.add('open');
   document.getElementById('popupPanel').classList.add('open');
+
+  // Fetch full body async
+  try {
+    const result = await apiFetch(`/api/emails/${email.email_id}/body`);
+    const container = document.getElementById('emailBodyContainer');
+    if (result?.body) {
+      if (result.mimeType === 'text/html') {
+        // Render HTML safely in iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'width:100%;height:400px;border:none;';
+        iframe.sandbox = 'allow-same-origin';
+        container.innerHTML = '';
+        container.appendChild(iframe);
+        iframe.contentDocument.open();
+        iframe.contentDocument.write(result.body);
+        iframe.contentDocument.close();
+        // Auto-resize iframe
+        setTimeout(() => {
+          try {
+            const h = iframe.contentDocument.body.scrollHeight;
+            iframe.style.height = Math.min(h + 20, 500) + 'px';
+          } catch(e) {}
+        }, 300);
+      } else {
+        container.innerHTML = `<div class="email-body-text">${result.body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+      }
+    } else {
+      container.innerHTML = `<div class="body-loading" style="color:#aaa;">📭 No content available${result?.error ? ' — ' + result.error : ''}</div>`;
+    }
+  } catch (err) {
+    document.getElementById('emailBodyContainer').innerHTML = '<div class="body-loading" style="color:#e74c3c;">❌ Failed to load email content</div>';
+  }
 }
 
 function closePopup() {
@@ -562,7 +577,7 @@ async function markStatus(status) {
   if (document.getElementById('pageAll').classList.contains('active')) loadAll(1);
 }
 
-// ── RENDER HELPERS ────────────────────────────────────────────────
+// ── HELPERS ───────────────────────────────────────────────────────
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -583,7 +598,6 @@ function renderEmailTable(emails, showStatus = false) {
     </td>
     <td style="max-width:280px;">
       <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.subject||'(no subject)'}</div>
-      <div style="color:#aaa;font-size:11px;">${(e.body_preview||'').substring(0,60)}...</div>
     </td>
     <td style="font-size:12px;color:#666;">${e.account||''}</td>
     ${showStatus ? `<td><span class="badge ${e.status}">${e.status}</span></td>` : ''}
