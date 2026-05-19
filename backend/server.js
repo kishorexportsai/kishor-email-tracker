@@ -59,7 +59,16 @@ app.post('/api/login', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-  res.json({ token: makeToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({
+    token: makeToken(user),
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, account_email: user.account_email }
+  });
+});
+
+// ─── ME ──────────────────────────────────────────────────────────
+app.get('/api/me', authMiddleware, async (req, res) => {
+  const { data } = await supabase.from('users').select('id,name,email,role,account_email').eq('id', req.user.id).single();
+  res.json(data || {});
 });
 
 // ─── GOOGLE SIGN-IN ──────────────────────────────────────────────
@@ -107,7 +116,7 @@ app.get('/auth/gmail/callback', async (req, res) => {
         </div>
         <script>
           localStorage.setItem('ke_token', '${jwtToken}');
-          localStorage.setItem('ke_user', JSON.stringify(${JSON.stringify({ id: dbUser.id, name: dbUser.name, email: dbUser.email, role: dbUser.role })}));
+          localStorage.setItem('ke_user', JSON.stringify(${JSON.stringify({ id: dbUser.id, name: dbUser.name, email: dbUser.email, role: dbUser.role, account_email: dbUser.account_email })}));
           setTimeout(() => window.location.href = '/', 1500);
         </script></body></html>`);
     } else {
@@ -147,6 +156,99 @@ app.get('/api/gmail/status', authMiddleware, async (req, res) => {
   res.json({ connected: !!(user?.gmail_token), account });
 });
 
+// ─── FULL EMAIL BODY ─────────────────────────────────────────────
+app.get('/api/emails/:emailId/body', authMiddleware, async (req, res) => {
+  try {
+    const { emailId } = req.params;
+
+    // Get email record from Supabase to find account
+    const { data: emailRecord } = await supabase
+      .from('emails')
+      .select('account, email_id')
+      .eq('email_id', emailId)
+      .single();
+
+    if (!emailRecord) return res.json({ body: null, error: 'Email not found' });
+
+    // Get token for this account
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('gmail_token')
+      .eq('email', emailRecord.account)
+      .single();
+
+    if (!userRecord?.gmail_token) return res.json({ body: null, error: 'No token for account' });
+
+    const tokens = JSON.parse(userRecord.gmail_token);
+    const oauth2Client = getOAuthClient();
+    oauth2Client.setCredentials(tokens);
+
+    // Auto-refresh token
+    oauth2Client.on('tokens', async (newTokens) => {
+      const updated = { ...tokens, ...newTokens };
+      await supabase.from('users').update({ gmail_token: JSON.stringify(updated) }).eq('email', emailRecord.account);
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    // Fetch full email
+    const msgRes = await gmail.users.messages.get({
+      userId: 'me',
+      id: emailRecord.email_id,
+      format: 'full'
+    });
+
+    const payload = msgRes.data.payload;
+
+    // Extract body from payload
+    function extractBody(payload) {
+      if (!payload) return '';
+
+      // Direct body
+      if (payload.body?.data) {
+        return Buffer.from(payload.body.data, 'base64').toString('utf-8');
+      }
+
+      // Multipart — look for text/plain first, then text/html
+      if (payload.parts) {
+        let htmlBody = '';
+        let textBody = '';
+        for (const part of payload.parts) {
+          if (part.mimeType === 'text/plain' && part.body?.data) {
+            textBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
+          }
+          if (part.mimeType === 'text/html' && part.body?.data) {
+            htmlBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
+          }
+          // Nested multipart
+          if (part.mimeType?.startsWith('multipart/') && part.parts) {
+            for (const subPart of part.parts) {
+              if (subPart.mimeType === 'text/plain' && subPart.body?.data) {
+                textBody = Buffer.from(subPart.body.data, 'base64').toString('utf-8');
+              }
+              if (subPart.mimeType === 'text/html' && subPart.body?.data) {
+                htmlBody = Buffer.from(subPart.body.data, 'base64').toString('utf-8');
+              }
+            }
+          }
+        }
+        return htmlBody || textBody;
+      }
+
+      return '';
+    }
+
+    const body = extractBody(payload);
+    const mimeType = payload.mimeType || 'text/plain';
+
+    res.json({ body, mimeType });
+
+  } catch (err) {
+    console.error('Email body fetch error:', err.message);
+    res.json({ body: null, error: err.message });
+  }
+});
+
 // ─── ACCOUNT FILTER ──────────────────────────────────────────────
 async function getAccountFilter(role, account_email, email) {
   if (role === 'agent') return [account_email].filter(Boolean);
@@ -173,7 +275,7 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
     supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).gte('received_at', today.toISOString()),
     supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).eq('status', 'replied').gte('replied_at', today.toISOString())
   ]);
-  res.json({ total: t.count || 0, replied: r.count || 0, unreplied: u.count || 0, today: d.count || 0, repliedToday: rd.count || 0 });
+  res.json({ total: t.count||0, replied: r.count||0, unreplied: u.count||0, today: d.count||0, repliedToday: rd.count||0 });
 });
 
 // ─── EMAILS ──────────────────────────────────────────────────────
@@ -186,7 +288,7 @@ app.get('/api/emails/unreplied', authMiddleware, async (req, res) => {
   const { data, count } = await supabase.from('emails').select('*', { count: 'exact' })
     .in('account', filter).eq('status', 'unreplied')
     .order('received_at', { ascending: false }).range((page-1)*limit, page*limit-1);
-  res.json({ emails: data || [], total: count || 0 });
+  res.json({ emails: data||[], total: count||0 });
 });
 
 app.get('/api/emails', authMiddleware, async (req, res) => {
@@ -199,7 +301,7 @@ app.get('/api/emails', authMiddleware, async (req, res) => {
     .order('received_at', { ascending: false }).range((page-1)*limit, page*limit-1);
   if (status) query = query.eq('status', status);
   const { data, count } = await query;
-  res.json({ emails: data || [], total: count || 0 });
+  res.json({ emails: data||[], total: count||0 });
 });
 
 // ─── UPDATE EMAIL STATUS ─────────────────────────────────────────
@@ -218,14 +320,14 @@ app.get('/api/agents', authMiddleware, async (req, res) => {
   let query = supabase.from('users').select('id,name,email,account_email,role').eq('is_active', true);
   if (role === 'manager') query = query.eq('manager_email', email);
   const { data } = await query;
-  res.json(data || []);
+  res.json(data||[]);
 });
 
 // ─── ADMIN: USERS ────────────────────────────────────────────────
 app.get('/api/admin/users', authMiddleware, async (req, res) => {
   if (req.user.role !== 'senior_manager') return res.status(403).json({ error: 'Forbidden' });
   const { data } = await supabase.from('users').select('id,name,email,account_email,role,is_active').order('name');
-  res.json(data || []);
+  res.json(data||[]);
 });
 
 app.patch('/api/admin/users/:id', authMiddleware, async (req, res) => {
@@ -242,9 +344,8 @@ app.patch('/api/admin/users/:id', authMiddleware, async (req, res) => {
 // ─── REMINDER LOGS ───────────────────────────────────────────────
 app.get('/api/admin/reminder-logs', authMiddleware, async (req, res) => {
   if (req.user.role !== 'senior_manager') return res.status(403).json({ error: 'Forbidden' });
-  const { data } = await supabase.from('reminder_logs')
-    .select('*').order('sent_at', { ascending: false }).limit(100);
-  res.json(data || []);
+  const { data } = await supabase.from('reminder_logs').select('*').order('sent_at', { ascending: false }).limit(200);
+  res.json(data||[]);
 });
 
 // ─── WEEKLY REPORT ───────────────────────────────────────────────
@@ -252,29 +353,17 @@ app.get('/api/report/weekly/:agentEmail', authMiddleware, async (req, res) => {
   const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - 7);
   const { data: all } = await supabase.from('emails').select('*').eq('account', req.params.agentEmail).gte('received_at', weekStart.toISOString());
   const { data: unreplied } = await supabase.from('emails').select('*').eq('account', req.params.agentEmail).eq('status', 'unreplied').gte('received_at', weekStart.toISOString());
-
-  // Daily breakdown for chart
   const dailyMap = {};
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     dailyMap[key] = { received: 0, replied: 0 };
   }
-  (all || []).forEach(e => {
+  (all||[]).forEach(e => {
     const key = new Date(e.received_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-    if (dailyMap[key]) {
-      dailyMap[key].received++;
-      if (e.status === 'replied') dailyMap[key].replied++;
-    }
+    if (dailyMap[key]) { dailyMap[key].received++; if (e.status==='replied') dailyMap[key].replied++; }
   });
-
-  res.json({
-    total: all?.length || 0,
-    replied: (all?.length || 0) - (unreplied?.length || 0),
-    unreplied: unreplied?.length || 0,
-    unrepliedEmails: unreplied || [],
-    daily: dailyMap
-  });
+  res.json({ total: all?.length||0, replied: (all?.length||0)-(unreplied?.length||0), unreplied: unreplied?.length||0, unrepliedEmails: unreplied||[], daily: dailyMap });
 });
 
 // ─── MONTHLY REPORT ──────────────────────────────────────────────
@@ -282,22 +371,14 @@ app.get('/api/report/monthly/:agentEmail', authMiddleware, async (req, res) => {
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
   const { data: all } = await supabase.from('emails').select('*').eq('account', req.params.agentEmail).gte('received_at', monthStart.toISOString());
   const { data: unreplied } = await supabase.from('emails').select('*').eq('account', req.params.agentEmail).eq('status', 'unreplied').gte('received_at', monthStart.toISOString());
-
-  // Weekly breakdown for this month
-  const weeklyMap = { 'Week 1': { received: 0, replied: 0 }, 'Week 2': { received: 0, replied: 0 }, 'Week 3': { received: 0, replied: 0 }, 'Week 4': { received: 0, replied: 0 } };
-  (all || []).forEach(e => {
+  const weeklyMap = { 'Week 1': { received:0, replied:0 }, 'Week 2': { received:0, replied:0 }, 'Week 3': { received:0, replied:0 }, 'Week 4': { received:0, replied:0 } };
+  (all||[]).forEach(e => {
     const day = new Date(e.received_at).getDate();
-    const week = day <= 7 ? 'Week 1' : day <= 14 ? 'Week 2' : day <= 21 ? 'Week 3' : 'Week 4';
+    const week = day<=7?'Week 1':day<=14?'Week 2':day<=21?'Week 3':'Week 4';
     weeklyMap[week].received++;
-    if (e.status === 'replied') weeklyMap[week].replied++;
+    if (e.status==='replied') weeklyMap[week].replied++;
   });
-
-  res.json({
-    total: all?.length || 0,
-    replied: (all?.length || 0) - (unreplied?.length || 0),
-    unreplied: unreplied?.length || 0,
-    weekly: weeklyMap
-  });
+  res.json({ total: all?.length||0, replied: (all?.length||0)-(unreplied?.length||0), unreplied: unreplied?.length||0, weekly: weeklyMap });
 });
 
 // ─── MANUAL TRIGGER ──────────────────────────────────────────────
