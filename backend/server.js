@@ -161,7 +161,7 @@ app.get('/api/emails/:emailId/body', authMiddleware, async (req, res) => {
   try {
     const { emailId } = req.params;
 
-    // Get email record from Supabase to find account
+    // Get email record from Supabase
     const { data: emailRecord } = await supabase
       .from('emails')
       .select('account, email_id')
@@ -170,11 +170,11 @@ app.get('/api/emails/:emailId/body', authMiddleware, async (req, res) => {
 
     if (!emailRecord) return res.json({ body: null, error: 'Email not found' });
 
-    // Get token for this account
+    // ✅ FIXED: use account_email column (not email)
     const { data: userRecord } = await supabase
       .from('users')
       .select('gmail_token')
-      .eq('email', emailRecord.account)
+      .eq('account_email', emailRecord.account)
       .single();
 
     if (!userRecord?.gmail_token) return res.json({ body: null, error: 'No token for account' });
@@ -183,15 +183,13 @@ app.get('/api/emails/:emailId/body', authMiddleware, async (req, res) => {
     const oauth2Client = getOAuthClient();
     oauth2Client.setCredentials(tokens);
 
-    // Auto-refresh token
     oauth2Client.on('tokens', async (newTokens) => {
       const updated = { ...tokens, ...newTokens };
-      await supabase.from('users').update({ gmail_token: JSON.stringify(updated) }).eq('email', emailRecord.account);
+      await supabase.from('users').update({ gmail_token: JSON.stringify(updated) }).eq('account_email', emailRecord.account);
     });
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    // Fetch full email
     const msgRes = await gmail.users.messages.get({
       userId: 'me',
       id: emailRecord.email_id,
@@ -200,47 +198,42 @@ app.get('/api/emails/:emailId/body', authMiddleware, async (req, res) => {
 
     const payload = msgRes.data.payload;
 
-    // Extract body from payload
     function extractBody(payload) {
-      if (!payload) return '';
+      if (!payload) return { body: '', mimeType: 'text/plain' };
 
-      // Direct body
       if (payload.body?.data) {
-        return Buffer.from(payload.body.data, 'base64').toString('utf-8');
+        return {
+          body: Buffer.from(payload.body.data, 'base64').toString('utf-8'),
+          mimeType: payload.mimeType || 'text/plain'
+        };
       }
 
-      // Multipart — look for text/plain first, then text/html
       if (payload.parts) {
         let htmlBody = '';
         let textBody = '';
-        for (const part of payload.parts) {
-          if (part.mimeType === 'text/plain' && part.body?.data) {
-            textBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
-          }
-          if (part.mimeType === 'text/html' && part.body?.data) {
-            htmlBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
-          }
-          // Nested multipart
-          if (part.mimeType?.startsWith('multipart/') && part.parts) {
-            for (const subPart of part.parts) {
-              if (subPart.mimeType === 'text/plain' && subPart.body?.data) {
-                textBody = Buffer.from(subPart.body.data, 'base64').toString('utf-8');
-              }
-              if (subPart.mimeType === 'text/html' && subPart.body?.data) {
-                htmlBody = Buffer.from(subPart.body.data, 'base64').toString('utf-8');
-              }
+
+        function searchParts(parts) {
+          for (const part of parts) {
+            if (part.mimeType === 'text/html' && part.body?.data) {
+              htmlBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
             }
+            if (part.mimeType === 'text/plain' && part.body?.data) {
+              textBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
+            }
+            if (part.parts) searchParts(part.parts);
           }
         }
-        return htmlBody || textBody;
+
+        searchParts(payload.parts);
+
+        if (htmlBody) return { body: htmlBody, mimeType: 'text/html' };
+        if (textBody) return { body: textBody, mimeType: 'text/plain' };
       }
 
-      return '';
+      return { body: '', mimeType: 'text/plain' };
     }
 
-    const body = extractBody(payload);
-    const mimeType = payload.mimeType || 'text/plain';
-
+    const { body, mimeType } = extractBody(payload);
     res.json({ body, mimeType });
 
   } catch (err) {
