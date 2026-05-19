@@ -62,24 +62,22 @@ app.post('/api/login', async (req, res) => {
   res.json({ token: makeToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
-// ─── GOOGLE SIGN-IN (for staff) ─────────────────────────────────
+// ─── GOOGLE SIGN-IN ──────────────────────────────────────────────
 app.get('/auth/google', (req, res) => {
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
+    access_type: 'offline', prompt: 'consent',
     scope: [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.metadata',
-      'email',
-      'profile'
+      'email', 'profile'
     ],
     state: 'google_signin'
   });
   res.redirect(url);
 });
 
-// Step 2: Google callback — handles BOTH sign-in AND connect-gmail
+// ─── GMAIL CALLBACK ──────────────────────────────────────────────
 app.get('/auth/gmail/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) return res.send('<h2>Error: No code received</h2>');
@@ -89,7 +87,6 @@ app.get('/auth/gmail/callback', async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Get Google user info
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data: googleUser } = await oauth2.userinfo.get();
     const gmailAddress = googleUser.email;
@@ -98,24 +95,17 @@ app.get('/auth/gmail/callback', async (req, res) => {
     let dbUser;
 
     if (state === 'google_signin') {
-      // ── SIGN IN FLOW: find or create user ──
       const { data: existing } = await supabase.from('users')
         .select('*').eq('account_email', gmailAddress).single();
 
       if (existing) {
         dbUser = existing;
-        // Save token to Supabase for existing user
         await saveTokenToSupabase(gmailAddress, tokens);
       } else {
-        // New user — auto-create as agent
         const { data: created } = await supabase.from('users').insert({
-          name: googleName,
-          email: gmailAddress,
-          password_hash: '',
-          role: 'agent',
-          account_email: gmailAddress,
-          is_active: true,
-          gmail_token: JSON.stringify(tokens)  // ✅ save token in Supabase on create
+          name: googleName, email: gmailAddress, password_hash: '',
+          role: 'agent', account_email: gmailAddress, is_active: true,
+          gmail_token: JSON.stringify(tokens)
         }).select().single();
         dbUser = created;
       }
@@ -123,8 +113,6 @@ app.get('/auth/gmail/callback', async (req, res) => {
       if (!dbUser) return res.send('<h2>Error creating user</h2>');
 
       const jwtToken = makeToken(dbUser);
-
-      // Trigger email fetch
       setTimeout(() => runGmailFetcher().catch(console.error), 2000);
 
       return res.send(`<!DOCTYPE html><html><head><title>Signing in...</title></head><body style="font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f0f4f8;">
@@ -142,9 +130,7 @@ app.get('/auth/gmail/callback', async (req, res) => {
       </body></html>`);
 
     } else {
-      // ── CONNECT GMAIL FLOW (existing logged-in user) ──
       if (state) {
-        // Save token to Supabase for this user
         await saveTokenToSupabase(gmailAddress, tokens);
         await supabase.from('users').update({ account_email: gmailAddress }).eq('email', state);
       }
@@ -167,7 +153,7 @@ app.get('/auth/gmail/callback', async (req, res) => {
   }
 });
 
-// ─── CONNECT GMAIL (for already logged-in user) ─────────────────
+// ─── CONNECT GMAIL ───────────────────────────────────────────────
 app.get('/auth/gmail', (req, res) => {
   const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
   let user;
@@ -189,11 +175,9 @@ app.get('/auth/gmail', (req, res) => {
 // ─── GMAIL STATUS ────────────────────────────────────────────────
 app.get('/api/gmail/status', authMiddleware, async (req, res) => {
   const { data: user } = await supabase.from('users')
-    .select('account_email, gmail_token')
-    .eq('id', req.user.id).single();
+    .select('account_email, gmail_token').eq('id', req.user.id).single();
   const account = user?.account_email || req.user.account_email;
   if (!account) return res.json({ connected: false });
-  // Connected = token exists in Supabase
   const connected = !!(user?.gmail_token);
   res.json({ connected, account });
 });
@@ -211,19 +195,28 @@ async function getAccountFilter(role, account_email, email) {
   return [...new Set((data || []).map(a => a.account_email).filter(Boolean))];
 }
 
-// ─── STATS ───────────────────────────────────────────────────────
+// ─── STATS (with repliedToday) ───────────────────────────────────
 app.get('/api/stats', authMiddleware, async (req, res) => {
   const { role, account_email, email } = req.user;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const accountFilter = await getAccountFilter(role, account_email, email);
-  if (!accountFilter.length) return res.json({ total: 0, replied: 0, unreplied: 0, today: 0 });
-  const [t, r, u, d] = await Promise.all([
+  if (!accountFilter.length) return res.json({ total: 0, replied: 0, unreplied: 0, today: 0, repliedToday: 0 });
+
+  const [t, r, u, d, rd] = await Promise.all([
     supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter),
     supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).eq('status', 'replied'),
     supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).eq('status', 'unreplied'),
-    supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).gte('received_at', today.toISOString())
+    supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).gte('received_at', today.toISOString()),
+    supabase.from('emails').select('id', { count: 'exact' }).in('account', accountFilter).eq('status', 'replied').gte('replied_at', today.toISOString())
   ]);
-  res.json({ total: t.count || 0, replied: r.count || 0, unreplied: u.count || 0, today: d.count || 0 });
+
+  res.json({
+    total: t.count || 0,
+    replied: r.count || 0,
+    unreplied: u.count || 0,
+    today: d.count || 0,
+    repliedToday: rd.count || 0
+  });
 });
 
 // ─── EMAILS ──────────────────────────────────────────────────────
@@ -274,7 +267,7 @@ app.get('/api/admin/users', authMiddleware, async (req, res) => {
   res.json(data || []);
 });
 
-// ─── ADMIN: UPDATE USER ROLE ─────────────────────────────────────
+// ─── ADMIN: UPDATE USER ──────────────────────────────────────────
 app.patch('/api/admin/users/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'senior_manager') return res.status(403).json({ error: 'Forbidden' });
   const { role, is_active, manager_email } = req.body;
