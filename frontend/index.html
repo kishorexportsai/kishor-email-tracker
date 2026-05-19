@@ -7,8 +7,6 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; }
-
-  /* ── LOGIN ── */
   #loginPage { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%); }
   .login-box { background: white; border-radius: 12px; padding: 40px; width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
   .login-box h1 { color: #1E3A5F; font-size: 22px; margin-bottom: 4px; }
@@ -25,8 +23,6 @@
   .btn-google:hover { background: #f5f5f5; border-color: #bbb; }
   .btn-google svg { width: 20px; height: 20px; }
   .login-error { color: #e74c3c; font-size: 13px; margin-top: 10px; text-align: center; }
-
-  /* ── APP LAYOUT ── */
   #app { display: none; min-height: 100vh; }
   .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 230px; background: #1E3A5F; color: white; z-index: 100; overflow-y: auto; }
   .sidebar-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -45,8 +41,6 @@
   .page-header { margin-bottom: 24px; }
   .page-header h1 { font-size: 22px; color: #1E3A5F; font-weight: 700; }
   .page-header p { color: #888; font-size: 13px; margin-top: 4px; }
-
-  /* ── STATS ── */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
   .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #ddd; }
   .stat-card.blue { border-left-color: #2E86C1; }
@@ -55,8 +49,6 @@
   .stat-card.red { border-left-color: #E74C3C; }
   .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
   .stat-value { font-size: 32px; font-weight: 700; color: #1E3A5F; margin-top: 6px; }
-
-  /* ── CARDS ── */
   .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 20px; }
   .card-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
   .card-header h3 { font-size: 15px; color: #1E3A5F; font-weight: 600; }
@@ -69,11 +61,9 @@
   .gmail-banner .text h3 { color: #E65100; font-size: 15px; margin-bottom: 4px; }
   .gmail-banner .text p { color: #666; font-size: 13px; }
   .gmail-connected { background: #e8f5e9; border: 1.5px solid #4CAF50; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; color: #2E7D32; font-size: 13px; font-weight: 500; }
-
-  /* ── TABLE ── */
   table { width: 100%; border-collapse: collapse; }
   th { padding: 12px 16px; text-align: left; font-size: 12px; color: #888; text-transform: uppercase; background: #f8f9fa; }
-  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
   tr:hover td { background: #fafbfc; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
   .badge.unreplied { background: #fde8e8; color: #e74c3c; }
@@ -91,38 +81,24 @@
   .hidden { display: none !important; }
   .page { display: none; }
   .page.active { display: block; }
-
-  /* ── ADMIN ── */
   .admin-table td select { padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
   .btn-save { padding: 5px 12px; background: #27AE60; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
   .btn-save:hover { background: #1e8449; }
   .btn-deactivate { padding: 5px 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
-
-  /* ── PENDING APPROVAL BANNER ── */
-  .pending-banner { background: #fff3e0; border: 1.5px solid #FFB300; border-radius: 10px; padding: 30px; text-align: center; margin: 40px auto; max-width: 500px; }
-  .pending-banner h2 { color: #E65100; margin-bottom: 8px; }
-  .pending-banner p { color: #666; font-size: 14px; }
-
   @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 16px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
 
-<!-- LOGIN PAGE -->
 <div id="loginPage">
   <div class="login-box">
     <h1>📧 Kishor Exports</h1>
     <p>Email Tracker & CRM — Internal Tool</p>
-
-    <!-- Google Sign In (for staff) -->
     <button class="btn-google" onclick="signInWithGoogle()">
       <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
       Sign in with Google (@kishorexports.com)
     </button>
-
     <div class="divider">or admin login</div>
-
-    <!-- Email/Password (admin only) -->
     <div class="form-group">
       <label>Email Address</label>
       <input type="email" id="loginEmail" placeholder="admin@kishorexports.com">
@@ -136,7 +112,6 @@
   </div>
 </div>
 
-<!-- MAIN APP -->
 <div id="app">
   <div class="sidebar">
     <div class="sidebar-header">
@@ -158,13 +133,8 @@
   </div>
 
   <div class="main">
-
-    <!-- DASHBOARD -->
     <div class="page active" id="pageDashboard">
-      <div class="page-header">
-        <h1>Dashboard</h1>
-        <p>Overview of email activity</p>
-      </div>
+      <div class="page-header"><h1>Dashboard</h1><p>Overview of email activity</p></div>
       <div id="gmailBanner"></div>
       <div class="stats-grid">
         <div class="stat-card blue"><div class="stat-label">Total Emails</div><div class="stat-value" id="statTotal">—</div></div>
@@ -181,7 +151,6 @@
       </div>
     </div>
 
-    <!-- UNREPLIED -->
     <div class="page" id="pageUnreplied">
       <div class="page-header"><h1>Unreplied Emails</h1><p>Emails that need a reply</p></div>
       <div class="card">
@@ -197,7 +166,6 @@
       </div>
     </div>
 
-    <!-- ALL EMAILS -->
     <div class="page" id="pageAll">
       <div class="page-header"><h1>All Emails</h1><p>Complete email history</p></div>
       <div class="card">
@@ -218,18 +186,13 @@
       </div>
     </div>
 
-    <!-- WEEKLY REPORT -->
     <div class="page" id="pageWeekly">
       <div class="page-header"><h1>Weekly Report</h1><p>Last 7 days summary</p></div>
       <div id="weeklyContent"><div class="loading">Loading...</div></div>
     </div>
 
-    <!-- ADMIN: MANAGE STAFF -->
     <div class="page" id="pageAdmin">
-      <div class="page-header">
-        <h1>Manage Staff</h1>
-        <p>View and manage all staff accounts</p>
-      </div>
+      <div class="page-header"><h1>Manage Staff</h1><p>View and manage all staff accounts</p></div>
       <div class="card">
         <div class="card-header">
           <h3>👥 All Users</h3>
@@ -238,7 +201,6 @@
         <div id="adminUserList"><div class="loading">Loading...</div></div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -246,10 +208,7 @@
 let token = localStorage.getItem('ke_token');
 let currentUser = JSON.parse(localStorage.getItem('ke_user') || 'null');
 
-// ── AUTH ──────────────────────────────────────────────────────────
-function signInWithGoogle() {
-  window.location.href = '/auth/google';
-}
+function signInWithGoogle() { window.location.href = '/auth/google'; }
 
 async function doLogin() {
   const email = document.getElementById('loginEmail').value;
@@ -257,57 +216,35 @@ async function doLogin() {
   const errEl = document.getElementById('loginError');
   errEl.classList.add('hidden');
   try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    token = data.token;
-    currentUser = data.user;
+    token = data.token; currentUser = data.user;
     localStorage.setItem('ke_token', token);
     localStorage.setItem('ke_user', JSON.stringify(currentUser));
     initApp();
-  } catch (err) {
-    errEl.classList.remove('hidden');
-    errEl.textContent = err.message;
-  }
+  } catch (err) { errEl.classList.remove('hidden'); errEl.textContent = err.message; }
 }
 
-function logout() {
-  localStorage.removeItem('ke_token');
-  localStorage.removeItem('ke_user');
-  location.reload();
-}
+function logout() { localStorage.removeItem('ke_token'); localStorage.removeItem('ke_user'); location.reload(); }
 
 async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, {
-    ...opts,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...opts.headers }
-  });
+  const res = await fetch(url, { ...opts, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...opts.headers } });
   if (res.status === 401) { logout(); return null; }
   return res.json();
 }
 
-// ── INIT ──────────────────────────────────────────────────────────
 async function initApp() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('sidebarName').textContent = currentUser.name;
   document.getElementById('sidebarRole').textContent = currentUser.role.replace(/_/g, ' ');
-
-  // Show admin menu for senior_manager
-  if (currentUser.role === 'senior_manager') {
-    document.getElementById('adminNavItem').style.display = 'flex';
-  }
-
+  if (currentUser.role === 'senior_manager') document.getElementById('adminNavItem').style.display = 'flex';
   await checkGmailStatus();
   loadDashboard();
   loadAgentFilter();
 }
 
-// ── GMAIL STATUS ──────────────────────────────────────────────────
 async function checkGmailStatus() {
   const data = await apiFetch('/api/gmail/status');
   const banner = document.getElementById('gmailBanner');
@@ -315,26 +252,16 @@ async function checkGmailStatus() {
   if (data.connected) {
     banner.innerHTML = `<div class="gmail-connected">✅ Gmail Connected: <strong>${data.account}</strong> — Syncing every 5 minutes</div>`;
   } else {
-    banner.innerHTML = `<div class="gmail-banner">
-      <div class="text">
-        <h3>📧 Connect Your Gmail Account</h3>
-        <p>Connect your Gmail to start tracking emails and get reminders</p>
-      </div>
-      <button class="btn-gmail" onclick="connectGmail()">🔗 Connect Gmail</button>
-    </div>`;
+    banner.innerHTML = `<div class="gmail-banner"><div class="text"><h3>📧 Connect Your Gmail Account</h3><p>Connect your Gmail to start tracking emails and get reminders</p></div><button class="btn-gmail" onclick="connectGmail()">🔗 Connect Gmail</button></div>`;
   }
 }
 
-function connectGmail() {
-  window.location.href = `/auth/gmail?token=${token}`;
-}
+function connectGmail() { window.location.href = `/auth/gmail?token=${token}`; }
 
-// ── PAGES ─────────────────────────────────────────────────────────
 function showPage(page, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const pageId = 'page' + page.charAt(0).toUpperCase() + page.slice(1);
-  document.getElementById(pageId).classList.add('active');
+  document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
   if (el) el.classList.add('active');
   if (page === 'unreplied') loadUnreplied(1);
   if (page === 'all') loadAll(1);
@@ -342,7 +269,6 @@ function showPage(page, el) {
   if (page === 'admin') loadAdminUsers();
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────────
 async function loadDashboard() {
   const stats = await apiFetch('/api/stats');
   if (!stats) return;
@@ -350,39 +276,29 @@ async function loadDashboard() {
   document.getElementById('statToday').textContent = stats.today;
   document.getElementById('statReplied').textContent = stats.replied;
   document.getElementById('statUnreplied').textContent = stats.unreplied;
-
   const data = await apiFetch('/api/emails/unreplied?limit=10');
   if (!data) return;
-  document.getElementById('dashEmailList').innerHTML = data.emails.length === 0
-    ? '<div class="empty">✅ No unreplied emails!</div>'
-    : renderEmailTable(data.emails);
+  document.getElementById('dashEmailList').innerHTML = data.emails.length === 0 ? '<div class="empty">✅ No unreplied emails!</div>' : renderEmailTable(data.emails);
 }
 
-// ── UNREPLIED ─────────────────────────────────────────────────────
 async function loadUnreplied(page = 1) {
   document.getElementById('unrepliedList').innerHTML = '<div class="loading">Loading...</div>';
   const account = document.getElementById('filterAccount')?.value || '';
   const data = await apiFetch(`/api/emails/unreplied?page=${page}&limit=20${account ? '&account=' + account : ''}`);
   if (!data) return;
-  document.getElementById('unrepliedList').innerHTML = data.emails.length === 0
-    ? '<div class="empty">✅ No unreplied emails!</div>'
-    : renderEmailTable(data.emails);
+  document.getElementById('unrepliedList').innerHTML = data.emails.length === 0 ? '<div class="empty">✅ No unreplied emails!</div>' : renderEmailTable(data.emails);
   renderPagination('unrepliedPagination', page, data.total, 20, loadUnreplied);
 }
 
-// ── ALL EMAILS ────────────────────────────────────────────────────
 async function loadAll(page = 1) {
   document.getElementById('allList').innerHTML = '<div class="loading">Loading...</div>';
   const status = document.getElementById('filterStatus')?.value || '';
   const data = await apiFetch(`/api/emails?page=${page}&limit=20${status ? '&status=' + status : ''}`);
   if (!data) return;
-  document.getElementById('allList').innerHTML = data.emails.length === 0
-    ? '<div class="empty">No emails found.</div>'
-    : renderEmailTable(data.emails, true);
+  document.getElementById('allList').innerHTML = data.emails.length === 0 ? '<div class="empty">No emails found.</div>' : renderEmailTable(data.emails, true);
   renderPagination('allPagination', page, data.total, 20, loadAll);
 }
 
-// ── WEEKLY ────────────────────────────────────────────────────────
 async function loadWeekly() {
   document.getElementById('weeklyContent').innerHTML = '<div class="loading">Loading...</div>';
   const agents = await apiFetch('/api/agents');
@@ -400,38 +316,26 @@ async function loadWeekly() {
   document.getElementById('weeklyContent').innerHTML = html || '<div class="empty">No agents found.</div>';
 }
 
-// ── ADMIN: MANAGE USERS ───────────────────────────────────────────
 async function loadAdminUsers() {
   document.getElementById('adminUserList').innerHTML = '<div class="loading">Loading...</div>';
   const users = await apiFetch('/api/admin/users');
-  if (!users) return;
-  if (users.length === 0) {
-    document.getElementById('adminUserList').innerHTML = '<div class="empty">No users found.</div>';
-    return;
-  }
-  const html = `<table class="admin-table">
-    <thead><tr>
-      <th>Name</th><th>Login Email</th><th>Gmail Account</th><th>Role</th><th>Status</th><th>Actions</th>
-    </tr></thead>
+  if (!users || users.length === 0) { document.getElementById('adminUserList').innerHTML = '<div class="empty">No users found.</div>'; return; }
+  const html = `<table class="admin-table"><thead><tr><th>Name</th><th>Login Email</th><th>Gmail Account</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${users.map(u => `<tr id="user-row-${u.id}">
       <td><strong>${u.name}</strong></td>
       <td style="font-size:12px;color:#666;">${u.email}</td>
       <td style="font-size:12px;color:#666;">${u.account_email || '—'}</td>
-      <td>
-        <select id="role-${u.id}">
-          <option value="agent" ${u.role==='agent'?'selected':''}>Agent</option>
-          <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
-          <option value="senior_manager" ${u.role==='senior_manager'?'selected':''}>Senior Manager</option>
-        </select>
-      </td>
+      <td><select id="role-${u.id}">
+        <option value="agent" ${u.role==='agent'?'selected':''}>Agent</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
+        <option value="senior_manager" ${u.role==='senior_manager'?'selected':''}>Senior Manager</option>
+      </select></td>
       <td><span class="badge ${u.is_active ? 'replied' : 'unreplied'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
       <td style="display:flex;gap:6px;">
         <button class="btn-save" onclick="saveUserRole('${u.id}')">Save</button>
         <button class="btn-deactivate" onclick="toggleUser('${u.id}', ${!u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
       </td>
-    </tr>`).join('')}
-    </tbody>
-  </table>`;
+    </tr>`).join('')}</tbody></table>`;
   document.getElementById('adminUserList').innerHTML = html;
 }
 
@@ -446,7 +350,16 @@ async function toggleUser(userId, isActive) {
   loadAdminUsers();
 }
 
-// ── RENDER HELPERS ────────────────────────────────────────────────
+// ── ✅ DATE + TIME FORMATTER ──────────────────────────────────────
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return `<div style="color:#555;font-size:13px;white-space:nowrap;">${date}</div>
+          <div style="color:#999;font-size:11px;white-space:nowrap;">${time}</div>`;
+}
+
 function renderWeeklyCard(name, account, data) {
   return `<div class="card" style="margin-bottom:16px;">
     <div class="card-header">
@@ -477,7 +390,7 @@ function renderEmailTable(emails, showStatus = false) {
     </td>
     <td style="font-size:12px;color:#666;">${e.account||''}</td>
     ${showStatus ? `<td><span class="badge ${e.status}">${e.status}</span></td>` : ''}
-    <td style="white-space:nowrap;color:#666;">${e.received_at ? new Date(e.received_at).toLocaleDateString('en-IN') : ''}</td>
+    <td>${formatDateTime(e.received_at)}</td>
     <td>${e.email_link ? `<a class="email-link" href="${e.email_link}" target="_blank">Open ↗</a>` : '—'}</td>
   </tr>`).join('')}
   </tbody></table>`;
@@ -497,16 +410,10 @@ async function loadAgentFilter() {
   const agents = await apiFetch('/api/agents');
   const sel = document.getElementById('filterAccount');
   if (sel && agents?.length > 0) {
-    agents.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.account_email;
-      opt.textContent = `${a.name} (${a.account_email})`;
-      sel.appendChild(opt);
-    });
+    agents.forEach(a => { const opt = document.createElement('option'); opt.value = a.account_email; opt.textContent = `${a.name} (${a.account_email})`; sel.appendChild(opt); });
   }
 }
 
-// ── AUTO-LOGIN IF TOKEN EXISTS ────────────────────────────────────
 if (token && currentUser) initApp();
 </script>
 </body>
