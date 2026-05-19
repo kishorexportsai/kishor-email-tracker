@@ -76,7 +76,7 @@ app.get('/auth/google', (req, res) => {
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline', prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.metadata', 'email', 'profile'],
+    scope: ['https://www.googleapis.com/auth/gmail.readonly', 'email', 'profile'],
     state: 'google_signin'
   });
   res.redirect(url);
@@ -142,7 +142,7 @@ app.get('/auth/gmail', (req, res) => {
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline', prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.metadata', 'email', 'profile'],
+    scope: ['https://www.googleapis.com/auth/gmail.readonly', 'email', 'profile'],
     state: user.email
   });
   res.redirect(url);
