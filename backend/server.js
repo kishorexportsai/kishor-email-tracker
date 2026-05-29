@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
-const { runGmailFetcher, saveTokenToSupabase } = require('./gmailFetcher');
+const { runGmailFetcher, saveTokenToSupabase, aiRescanExistingEmails } = require('./gmailFetcher');
 const { sendDailyAgentReminders, sendDailyManagerReminders, sendWeeklyReports } = require('./reminderSender');
 
 const app = express();
@@ -378,6 +378,13 @@ app.get('/api/report/monthly/:agentEmail', authMiddleware, async (req, res) => {
 app.post('/api/trigger/fetch', authMiddleware, async (req, res) => {
   runGmailFetcher().catch(console.error);
   res.json({ message: 'Fetch triggered' });
+});
+
+// ─── AI RESCAN ───────────────────────────────────────────────────
+app.post('/api/trigger/ai-rescan', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'senior_manager') return res.status(403).json({ error: 'Forbidden' });
+  res.json({ message: 'AI rescan started. Check Railway logs for progress.' });
+  aiRescanExistingEmails().catch(console.error);
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
