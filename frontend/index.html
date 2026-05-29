@@ -49,6 +49,7 @@
   .stat-card.orange { border-left-color: #E67E22; }
   .stat-card.red { border-left-color: #E74C3C; }
   .stat-card.purple { border-left-color: #8E44AD; }
+  .stat-card.grey { border-left-color: #95A5A6; }
   .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
   .stat-value { font-size: 32px; font-weight: 700; color: #1E3A5F; margin-top: 6px; }
   .card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 20px; }
@@ -56,6 +57,7 @@
   .card-header h3 { font-size: 15px; color: #1E3A5F; font-weight: 600; }
   .total-badge { background: #e3f2fd; color: #1565C0; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
   .total-badge.red { background: #fde8e8; color: #e74c3c; }
+  .total-badge.grey { background: #f0f0f0; color: #888; }
   .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .filter-bar select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; }
   .btn-refresh { padding: 7px 16px; background: #2E86C1; color: white; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
@@ -72,7 +74,7 @@
   .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
   .badge.unreplied { background: #fde8e8; color: #e74c3c; }
   .badge.replied { background: #e8f8ee; color: #27AE60; }
-  .badge.system_generated { background: #f0f0f0; color: #888; }
+  .badge.system_generated, .badge.no_reply_needed { background: #f0f0f0; color: #888; }
   .pagination { padding: 16px 20px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
   .btn-page { padding: 6px 12px; border: 1.5px solid #e0e0e0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
   .btn-page.active { background: #1E3A5F; color: white; border-color: #1E3A5F; }
@@ -89,6 +91,17 @@
   .report-stat { text-align: center; background: #f8f9fa; border-radius: 8px; padding: 16px; }
   .report-stat .val { font-size: 28px; font-weight: 700; }
   .report-stat .lbl { font-size: 12px; color: #888; margin-top: 4px; }
+  /* TABS */
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 0; }
+  .tab-btn { padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+  .tab-btn:hover { color: #1E3A5F; }
+  .tab-btn.active { color: #1E3A5F; border-bottom-color: #2E86C1; }
+  .tab-btn.tab-red.active { color: #e74c3c; border-bottom-color: #e74c3c; }
+  .tab-btn.tab-grey.active { color: #666; border-bottom-color: #95A5A6; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  /* AI reason tooltip */
+  .ai-reason { font-size: 11px; color: #aaa; margin-top: 2px; font-style: italic; }
   /* POPUP */
   .popup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
   .popup-overlay.open { display: block; }
@@ -99,7 +112,7 @@
   .popup-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; flex-shrink: 0; line-height: 1; }
   .popup-close:hover { opacity: 1; }
   .popup-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-  .popup-status-row { display: flex; align-items: center; gap: 10px; }
+  .popup-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .popup-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .popup-meta-item label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
   .popup-meta-item span { font-size: 13px; color: #333; font-weight: 500; word-break: break-all; }
@@ -116,6 +129,8 @@
   .btn-mark-replied:hover { background: #1e8449; }
   .btn-mark-unreplied { background: #E67E22; color: white; }
   .btn-mark-unreplied:hover { background: #ca6f1e; }
+  .btn-mark-noreply { background: #95A5A6; color: white; }
+  .btn-mark-noreply:hover { background: #7f8c8d; }
   @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3,1fr); } .popup-panel { width: 100%; right: -100%; } }
   @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 16px; } .stats-grid { grid-template-columns: repeat(2,1fr); } }
 </style>
@@ -147,6 +162,7 @@
     <nav>
       <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
       <div class="nav-item" onclick="showPage('unreplied',this)"><span class="icon">⚠️</span> Unreplied Emails</div>
+      <div class="nav-item" onclick="showPage('noreply',this)"><span class="icon">🤖</span> No Reply Needed</div>
       <div class="nav-item" onclick="showPage('all',this)"><span class="icon">📬</span> All Emails</div>
       <div class="nav-item" onclick="showPage('weekly',this)"><span class="icon">📈</span> Weekly Report</div>
       <div class="nav-item" onclick="showPage('monthly',this)"><span class="icon">📅</span> Monthly Report</div>
@@ -165,18 +181,31 @@
         <div class="stat-card blue"><div class="stat-label">Total Emails</div><div class="stat-value" id="statTotal">—</div></div>
         <div class="stat-card orange"><div class="stat-label">Received Today</div><div class="stat-value" id="statToday">—</div></div>
         <div class="stat-card green"><div class="stat-label">Replied</div><div class="stat-value" id="statReplied">—</div></div>
-        <div class="stat-card purple"><div class="stat-label">Replied Today</div><div class="stat-value" id="statRepliedToday">—</div></div>
         <div class="stat-card red"><div class="stat-label">Unreplied</div><div class="stat-value" id="statUnreplied">—</div></div>
+        <div class="stat-card grey"><div class="stat-label">Auto-Filtered</div><div class="stat-value" id="statNoReply">—</div></div>
       </div>
+
+      <!-- Dashboard tabs: Unreplied + No Reply Needed -->
       <div class="card">
-        <div class="card-header"><h3>⚠️ Unreplied Emails (Latest 10)</h3><button class="btn-refresh" onclick="loadDashboard()">🔄 Refresh</button></div>
-        <div id="dashEmailList"><div class="loading">Loading...</div></div>
+        <div class="card-header">
+          <div class="tab-bar">
+            <button class="tab-btn tab-red active" onclick="switchDashTab('unreplied', this)">⚠️ Unreplied (Latest 10)</button>
+            <button class="tab-btn tab-grey" onclick="switchDashTab('noreply', this)">🤖 No Reply Needed (Latest 10)</button>
+          </div>
+          <button class="btn-refresh" onclick="loadDashboard()">🔄 Refresh</button>
+        </div>
+        <div class="tab-content active" id="dashTabUnreplied">
+          <div id="dashEmailList"><div class="loading">Loading...</div></div>
+        </div>
+        <div class="tab-content" id="dashTabNoreply">
+          <div id="dashNoReplyList"><div class="loading">Loading...</div></div>
+        </div>
       </div>
     </div>
 
     <!-- UNREPLIED -->
     <div class="page" id="pageUnreplied">
-      <div class="page-header"><h1>Unreplied Emails</h1><p>Emails that need a reply</p></div>
+      <div class="page-header"><h1>⚠️ Unreplied Emails</h1><p>Real business emails that need a reply</p></div>
       <div class="card">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:12px;"><h3>Unreplied Emails</h3><span class="total-badge red" id="unrepliedTotalBadge">—</span></div>
@@ -187,6 +216,22 @@
         </div>
         <div id="unrepliedList"><div class="loading">Loading...</div></div>
         <div class="pagination" id="unrepliedPagination"></div>
+      </div>
+    </div>
+
+    <!-- NO REPLY NEEDED -->
+    <div class="page" id="pageNoreply">
+      <div class="page-header"><h1>🤖 No Reply Needed</h1><p>Bank alerts, auto-replies, system emails — filtered by AI</p></div>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:12px;"><h3>Auto-Filtered Emails</h3><span class="total-badge grey" id="noreplyTotalBadge">—</span></div>
+          <div class="filter-bar">
+            <select id="filterNoreplyAccount" onchange="loadNoreply(1)"><option value="">All Accounts</option></select>
+            <button class="btn-refresh" onclick="loadNoreply(1)">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="noreplyList"><div class="loading">Loading...</div></div>
+        <div class="pagination" id="noreplyPagination"></div>
       </div>
     </div>
 
@@ -202,6 +247,7 @@
               <option value="">All Status</option>
               <option value="unreplied">Unreplied</option>
               <option value="replied">Replied</option>
+              <option value="no_reply_needed">No Reply Needed</option>
               <option value="system_generated">System</option>
             </select>
             <button class="btn-refresh" onclick="loadAll(1)">🔄 Refresh</button>
@@ -252,7 +298,10 @@
     <button class="popup-close" onclick="closePopup()">×</button>
   </div>
   <div class="popup-body">
-    <div class="popup-status-row"><span id="popupStatusBadge" class="badge">—</span></div>
+    <div class="popup-status-row">
+      <span id="popupStatusBadge" class="badge">—</span>
+      <span id="popupAiReason" style="font-size:12px;color:#aaa;font-style:italic;"></span>
+    </div>
     <div class="popup-meta">
       <div class="popup-meta-item"><label>From</label><span id="popupSenderName">—</span></div>
       <div class="popup-meta-item"><label>Email</label><span id="popupSenderEmail">—</span></div>
@@ -335,11 +384,22 @@ function showPage(page, el) {
   if (el) el.classList.add('active');
   activeCharts.forEach(c => c.destroy()); activeCharts = [];
   if (page === 'unreplied') loadUnreplied(1);
+  if (page === 'noreply') loadNoreply(1);
   if (page === 'all') loadAll(1);
   if (page === 'weekly') loadWeekly();
   if (page === 'monthly') loadMonthly();
   if (page === 'admin') loadAdminUsers();
   if (page === 'reminders') loadReminderLogs();
+}
+
+function switchDashTab(tab, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('dashTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  if (tab === 'noreply' && document.getElementById('dashNoReplyList').innerHTML.includes('Loading')) {
+    loadDashNoReply();
+  }
 }
 
 async function loadDashboard() {
@@ -348,13 +408,24 @@ async function loadDashboard() {
   document.getElementById('statTotal').textContent = stats.total;
   document.getElementById('statToday').textContent = stats.today;
   document.getElementById('statReplied').textContent = stats.replied;
-  document.getElementById('statRepliedToday').textContent = stats.repliedToday;
   document.getElementById('statUnreplied').textContent = stats.unreplied;
+  document.getElementById('statNoReply').textContent = stats.noReplyNeeded || '—';
+
+  // Unreplied tab
   const data = await apiFetch('/api/emails/unreplied?limit=10');
   if (!data) return;
   document.getElementById('dashEmailList').innerHTML = data.emails.length === 0
     ? '<div class="empty">✅ No unreplied emails!</div>'
     : renderEmailTable(data.emails, false);
+}
+
+async function loadDashNoReply() {
+  document.getElementById('dashNoReplyList').innerHTML = '<div class="loading">Loading...</div>';
+  const data = await apiFetch('/api/emails?status=no_reply_needed&limit=10');
+  if (!data) return;
+  document.getElementById('dashNoReplyList').innerHTML = data.emails.length === 0
+    ? '<div class="empty">No auto-filtered emails.</div>'
+    : renderEmailTable(data.emails, false, true);
 }
 
 async function loadUnreplied(page = 1) {
@@ -367,6 +438,18 @@ async function loadUnreplied(page = 1) {
     ? '<div class="empty">✅ No unreplied emails!</div>'
     : renderEmailTable(data.emails, false);
   renderPagination('unrepliedPagination', page, data.total, 20, loadUnreplied);
+}
+
+async function loadNoreply(page = 1) {
+  document.getElementById('noreplyList').innerHTML = '<div class="loading">Loading...</div>';
+  const account = document.getElementById('filterNoreplyAccount')?.value || '';
+  const data = await apiFetch(`/api/emails?status=no_reply_needed&page=${page}&limit=20${account ? '&account='+account : ''}`);
+  if (!data) return;
+  document.getElementById('noreplyTotalBadge').textContent = data.total + ' emails';
+  document.getElementById('noreplyList').innerHTML = data.emails.length === 0
+    ? '<div class="empty">No auto-filtered emails.</div>'
+    : renderEmailTable(data.emails, false, true);
+  renderPagination('noreplyPagination', page, data.total, 20, loadNoreply);
 }
 
 async function loadAll(page = 1) {
@@ -507,34 +590,45 @@ async function openPopup(email) {
   document.getElementById('popupSenderEmail').textContent = email.sender_email || '—';
   document.getElementById('popupReceived').textContent = email.received_at ? new Date(email.received_at).toLocaleString('en-IN') : '—';
   document.getElementById('popupAccountMeta').textContent = email.account || '—';
+
   const badge = document.getElementById('popupStatusBadge');
+  const isNoReply = email.status === 'no_reply_needed' || email.status === 'system_generated';
   badge.className = `badge ${email.status}`;
-  badge.textContent = email.status === 'unreplied' ? '⚠️ Unreplied' : email.status === 'replied' ? '✅ Replied' : '🤖 System';
+  badge.textContent = email.status === 'unreplied' ? '⚠️ Unreplied'
+    : email.status === 'replied' ? '✅ Replied'
+    : '🤖 No Reply Needed';
+
+  // Show AI reason if available
+  const aiReasonEl = document.getElementById('popupAiReason');
+  aiReasonEl.textContent = email.ai_reason ? `AI: ${email.ai_reason}` : '';
+
   const actions = document.getElementById('popupActions');
   let btns = email.email_link ? `<a class="btn-open-gmail" href="${email.email_link}" target="_blank">📧 Open in Gmail</a>` : '';
-  if (email.status === 'unreplied') btns += `<button class="btn-mark-replied" onclick="markStatus('replied')">✅ Mark as Replied</button>`;
-  else if (email.status === 'replied') btns += `<button class="btn-mark-unreplied" onclick="markStatus('unreplied')">↩️ Mark as Unreplied</button>`;
+  if (email.status === 'unreplied') {
+    btns += `<button class="btn-mark-replied" onclick="markStatus('replied')">✅ Mark as Replied</button>`;
+    btns += `<button class="btn-mark-noreply" onclick="markStatus('no_reply_needed')">🤖 No Reply Needed</button>`;
+  } else if (email.status === 'replied') {
+    btns += `<button class="btn-mark-unreplied" onclick="markStatus('unreplied')">↩️ Mark as Unreplied</button>`;
+  } else if (isNoReply) {
+    btns += `<button class="btn-mark-unreplied" onclick="markStatus('unreplied')">↩️ Actually Needs Reply</button>`;
+  }
   actions.innerHTML = btns;
 
-  // Show popup with loading
   document.getElementById('emailBodyContainer').innerHTML = '<div class="body-loading">⏳ Loading email content...</div>';
   document.getElementById('popupOverlay').classList.add('open');
   document.getElementById('popupPanel').classList.add('open');
 
-  // Fetch full body
   try {
     const result = await apiFetch(`/api/emails/${email.email_id}/body`);
     const container = document.getElementById('emailBodyContainer');
     if (result?.body) {
       if (result.mimeType === 'text/html') {
-        // ✅ Use srcdoc to render HTML properly
         const iframe = document.createElement('iframe');
         iframe.className = 'email-body-iframe';
         iframe.sandbox = 'allow-same-origin allow-popups';
         iframe.srcdoc = result.body;
         container.innerHTML = '';
         container.appendChild(iframe);
-        // Auto-resize after content loads
         iframe.onload = () => {
           try {
             const h = iframe.contentDocument.documentElement.scrollHeight;
@@ -545,7 +639,7 @@ async function openPopup(email) {
         container.innerHTML = `<div class="email-body-text">${result.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
       }
     } else {
-      container.innerHTML = `<div class="body-loading" style="color:#aaa;">📭 No content available${result?.error ? '<br><small>' + result.error + '</small>' : ''}</div>`;
+      container.innerHTML = `<div class="body-loading" style="color:#aaa;">📭 No content available</div>`;
     }
   } catch (err) {
     document.getElementById('emailBodyContainer').innerHTML = '<div class="body-loading" style="color:#e74c3c;">❌ Failed to load email content</div>';
@@ -565,6 +659,7 @@ async function markStatus(status) {
   closePopup();
   loadDashboard();
   if (document.getElementById('pageUnreplied').classList.contains('active')) loadUnreplied(1);
+  if (document.getElementById('pageNoreply').classList.contains('active')) loadNoreply(1);
   if (document.getElementById('pageAll').classList.contains('active')) loadAll(1);
 }
 
@@ -576,7 +671,7 @@ function formatDateTime(dateStr) {
   return `<div style="color:#555;font-size:13px;white-space:nowrap;">${date}</div><div style="color:#999;font-size:11px;white-space:nowrap;">${time}</div>`;
 }
 
-function renderEmailTable(emails, showStatus = false) {
+function renderEmailTable(emails, showStatus = false, showAiReason = false) {
   return `<table><thead><tr>
     <th>From</th><th>Subject</th><th>Account</th>
     ${showStatus ? '<th>Status</th>' : ''}<th>Received</th>
@@ -588,9 +683,10 @@ function renderEmailTable(emails, showStatus = false) {
     </td>
     <td style="max-width:280px;">
       <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.subject||'(no subject)'}</div>
+      ${showAiReason && e.ai_reason ? `<div class="ai-reason">🤖 ${e.ai_reason}</div>` : ''}
     </td>
     <td style="font-size:12px;color:#666;">${e.account||''}</td>
-    ${showStatus ? `<td><span class="badge ${e.status}">${e.status}</span></td>` : ''}
+    ${showStatus ? `<td><span class="badge ${e.status}">${e.status === 'no_reply_needed' ? 'No Reply' : e.status}</span></td>` : ''}
     <td>${formatDateTime(e.received_at)}</td>
   </tr>`).join('')}
   </tbody></table>`;
@@ -609,7 +705,7 @@ function renderPagination(containerId, currentPage, total, limit, callback) {
 async function loadAgentFilters() {
   const agents = await apiFetch('/api/agents');
   if (!agents?.length) return;
-  ['filterUnrepliedAccount', 'filterAllAccount'].forEach(id => {
+  ['filterUnrepliedAccount', 'filterAllAccount', 'filterNoreplyAccount'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     agents.forEach(a => {
