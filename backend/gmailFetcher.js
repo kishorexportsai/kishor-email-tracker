@@ -79,12 +79,24 @@ async function fetchGmailEmails(accountEmail) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   try {
-    const listRes = await gmail.users.messages.list({
-      userId: 'me', maxResults: 100, labelIds: ['INBOX', 'CATEGORY_PERSONAL'],
-    });
+    // Paginate through ALL inbox emails for full historical backfill
+    // ignoreDuplicates=true means re-fetching existing emails is safe and fast
+    let messages = [];
+    let pageToken = undefined;
+    do {
+      const listRes = await gmail.users.messages.list({
+        userId: 'me',
+        maxResults: 500,
+        labelIds: ['INBOX', 'CATEGORY_PERSONAL'],
+        ...(pageToken ? { pageToken } : {})
+      });
+      const batch = listRes.data.messages || [];
+      messages = messages.concat(batch);
+      pageToken = listRes.data.nextPageToken;
+      // no cap — fetch all emails
+    } while (pageToken);
 
-    const messages = listRes.data.messages || [];
-    console.log(`[Gmail] ${accountEmail}: ${messages.length} messages`);
+    console.log(`[Gmail] ${accountEmail}: ${messages.length} messages found`);
     let saved = 0;
 
     for (const msg of messages) {
