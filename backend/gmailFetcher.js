@@ -120,6 +120,10 @@ async function fetchGmailEmails(accountEmail) {
 
       const receivedAt = date ? new Date(date).toISOString() : new Date().toISOString();
 
+      // Only AI-classify emails from the last 15 days
+      const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+      const isRecent = new Date(receivedAt).getTime() > fifteenDaysAgo;
+
       // Step 1: quick check for obvious system emails (no AI call needed)
       const obviouslySystem = isObviouslySystem(senderEmail, labelIds, listUnsub.length > 0);
 
@@ -131,8 +135,8 @@ async function fetchGmailEmails(accountEmail) {
         status = 'no_reply_needed';
         aiReason = 'Auto-detected: system/bulk/bank email';
         aiConfidence = 'high';
-      } else {
-        // Step 2: use AI to classify ambiguous emails
+      } else if (isRecent) {
+        // Step 2: AI classification only for last 15 days
         const bodyPreview = detail.data.snippet || '';
         const aiResult = await classifyEmail({
           senderEmail, senderName, subject, bodyPreview,
@@ -146,6 +150,7 @@ async function fetchGmailEmails(accountEmail) {
         }
         // if AI fails → default stays 'unreplied' (safe fallback)
       }
+      // older than 15 days → save as 'unreplied' without AI (you can review manually)
 
       const emailData = {
         email_id: msg.id,
