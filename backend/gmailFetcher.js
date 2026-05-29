@@ -2,63 +2,38 @@
 require('dotenv').config();
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
+const { classifyEmail } = require('./aiClassifier');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-// ── SPAM / SYSTEM EMAIL DETECTION ────────────────────────────────
-const SYSTEM_SENDER_KEYWORDS = [
-  'noreply', 'no-reply', 'donotreply', 'do-not-reply',
-  'mailer-daemon', 'postmaster', 'notification', 'notifications',
-  'alert', 'alerts', 'automated', 'system', 'support',
-  'newsletter', 'news', 'digest', 'update', 'updates',
-  'billing', 'invoice', 'receipt', 'payment', 'order',
-  'security', 'verify', 'verification', 'confirm', 'confirmation',
-  'hello@notify', 'hello@news', 'hello@mail',
-  'team@', 'info@', 'admin@',
-];
-
-const SYSTEM_SENDER_DOMAINS = [
-  'railway.app', 'notify.railway.app', 'news.railway.app',
-  'github.com', 'github.io', 'getgitguardian.com',
-  'apollo.io', 'mail.apollo.io',
-  'vultr.com',
-  'anthropic.com',
+// ── QUICK PRE-FILTER (saves AI API calls for obvious junk) ────────
+const OBVIOUS_SYSTEM_DOMAINS = [
+  'railway.app', 'github.com', 'github.io',
   'google.com', 'accounts.google.com', 'googlemail.com',
-  'dyad.sh',
   'linkedin.com', 'twitter.com', 'facebook.com', 'instagram.com',
-  'medium.com', 'substack.com',
   'mailchimp.com', 'sendgrid.net', 'amazonses.com',
-  'hubspot.com', 'salesforce.com', 'zendesk.com',
-  'notion.so', 'slack.com', 'zoom.us',
-  'stripe.com', 'paypal.com', 'razorpay.com',
+  'hdfcbank.com', 'sbi.co.in', 'icicibank.com', 'axisbank.com',
+  'kotak.com', 'yesbank.in', 'paytm.com', 'phonepe.com',
   'indiamart.com', 'tradeindia.com', 'alibaba.com',
+  'apollo.io', 'vultr.com', 'anthropic.com', 'dyad.sh',
+  'stripe.com', 'paypal.com', 'razorpay.com',
+  'zoom.us', 'slack.com', 'notion.so',
 ];
 
-const SYSTEM_SUBJECT_KEYWORDS = [
-  'unsubscribe', 'newsletter', 'promotion', 'offer', 'deal',
-  'discount', 'sale', '% off', 'free trial',
-  'invoice', 'receipt', 'payment confirmation', 'order confirmation',
-  'verify your', 'confirm your', 'activate your',
-  'deployment', 'build failed', 'build success', 'crashed',
-  'security alert', 'sign-in attempt', 'new sign-in',
-  'welcome to', 'getting started', 'your account',
-  'server activated', 'cloud server',
-  'daily digest', 'weekly digest', 'monthly report',
+const OBVIOUS_SYSTEM_KEYWORDS = [
+  'noreply', 'no-reply', 'donotreply', 'do-not-reply',
+  'mailer-daemon', 'postmaster',
 ];
 
 const GMAIL_LABELS_TO_SKIP = ['CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_SOCIAL', 'SPAM'];
 
-function isSystemGenerated(senderEmail, senderName, subject, labelIds = []) {
-  const senderLower = (senderEmail || '').toLowerCase();
-  const subjectLower = (subject || '').toLowerCase();
-
+function isObviouslySystem(senderEmail, labelIds, listUnsub) {
+  if (listUnsub) return true; // has List-Unsubscribe header = bulk mail
   if (labelIds.some(l => GMAIL_LABELS_TO_SKIP.includes(l))) return true;
-
-  const domain = senderLower.split('@')[1] || '';
-  if (SYSTEM_SENDER_DOMAINS.some(d => domain.includes(d))) return true;
-  if (SYSTEM_SENDER_KEYWORDS.some(k => senderLower.includes(k))) return true;
-  if (SYSTEM_SUBJECT_KEYWORDS.some(k => subjectLower.includes(k))) return true;
-
+  const lower = (senderEmail || '').toLowerCase();
+  const domain = lower.split('@')[1] || '';
+  if (OBVIOUS_SYSTEM_DOMAINS.some(d => domain.includes(d))) return true;
+  if (OBVIOUS_SYSTEM_KEYWORDS.some(k => lower.includes(k))) return true;
   return false;
 }
 
@@ -66,38 +41,23 @@ function getHeader(headers, name) {
   return headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
 }
 
-// ── TOKEN STORAGE IN SUPABASE ─────────────────────────────────────
+// ── TOKEN STORAGE ─────────────────────────────────────────────────
 async function getTokenFromSupabase(accountEmail) {
   const { data, error } = await supabase
-    .from('users')
-    .select('gmail_token')
-    .eq('email', accountEmail)
-    .single();
-
-  if (error || !data || !data.gmail_token) {
-    console.log(`[Gmail] No token in Supabase for ${accountEmail}`);
+    .from('users').select('gmail_token').eq('email', accountEmail).single();
+  if (error || !data?.gmail_token) {
+    console.log(`[Gmail] No token for ${accountEmail}`);
     return null;
   }
-
   try {
-    return typeof data.gmail_token === 'string'
-      ? JSON.parse(data.gmail_token)
-      : data.gmail_token;
-  } catch {
-    console.log(`[Gmail] Invalid token JSON for ${accountEmail}`);
-    return null;
-  }
+    return typeof data.gmail_token === 'string' ? JSON.parse(data.gmail_token) : data.gmail_token;
+  } catch { return null; }
 }
 
 async function saveTokenToSupabase(accountEmail, tokens) {
   const { error } = await supabase
-    .from('users')
-    .update({ gmail_token: JSON.stringify(tokens) })
-    .eq('email', accountEmail);
-
-  if (error) {
-    console.error(`[Gmail] Failed to save token for ${accountEmail}:`, error.message);
-  }
+    .from('users').update({ gmail_token: JSON.stringify(tokens) }).eq('email', accountEmail);
+  if (error) console.error(`[Gmail] Failed to save token for ${accountEmail}:`, error.message);
 }
 
 // ── FETCH EMAILS FOR ONE ACCOUNT ─────────────────────────────────
@@ -111,47 +71,69 @@ async function fetchGmailEmails(accountEmail) {
     process.env.GMAIL_REDIRECT_URI
   );
   oauth2Client.setCredentials(tokens);
-
   oauth2Client.on('tokens', async (newTokens) => {
-    const updated = { ...tokens, ...newTokens };
-    await saveTokenToSupabase(accountEmail, updated);
-    console.log(`[Gmail] Token refreshed and saved for ${accountEmail}`);
+    await saveTokenToSupabase(accountEmail, { ...tokens, ...newTokens });
+    console.log(`[Gmail] Token refreshed for ${accountEmail}`);
   });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   try {
-    // ✅ FIXED: labelIds only — no 'q' param (incompatible with metadata scope)
     const listRes = await gmail.users.messages.list({
-      userId: 'me',
-      maxResults: 100,
-      labelIds: ['INBOX', 'CATEGORY_PERSONAL'],
+      userId: 'me', maxResults: 100, labelIds: ['INBOX', 'CATEGORY_PERSONAL'],
     });
 
     const messages = listRes.data.messages || [];
-    console.log(`[Gmail] ${accountEmail}: Found ${messages.length} messages`);
+    console.log(`[Gmail] ${accountEmail}: ${messages.length} messages`);
     let saved = 0;
 
     for (const msg of messages) {
       const detail = await gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id,
-        format: 'metadata',
-        metadataHeaders: ['From', 'Subject', 'Date', 'Message-ID']
+        userId: 'me', id: msg.id, format: 'metadata',
+        metadataHeaders: ['From', 'To', 'Cc', 'Subject', 'Date', 'Message-ID', 'List-Unsubscribe']
       });
 
       const headers = detail.data.payload?.headers || [];
       const labelIds = detail.data.labelIds || [];
       const from = getHeader(headers, 'From');
+      const toHeader = getHeader(headers, 'To');
+      const ccHeader = getHeader(headers, 'Cc');
       const subject = getHeader(headers, 'Subject') || '(No Subject)';
       const date = getHeader(headers, 'Date');
+      const listUnsub = getHeader(headers, 'List-Unsubscribe');
 
       const emailMatch = from.match(/<(.+)>/);
       const senderEmail = emailMatch ? emailMatch[1] : from;
       const senderName = from.replace(/<.+>/, '').trim().replace(/"/g, '');
 
-      const systemGenerated = isSystemGenerated(senderEmail, senderName, subject, labelIds);
       const receivedAt = date ? new Date(date).toISOString() : new Date().toISOString();
+
+      // Step 1: quick check for obvious system emails (no AI call needed)
+      const obviouslySystem = isObviouslySystem(senderEmail, labelIds, listUnsub.length > 0);
+
+      let status = 'unreplied';
+      let aiReason = null;
+      let aiConfidence = null;
+
+      if (obviouslySystem) {
+        status = 'no_reply_needed';
+        aiReason = 'Auto-detected: system/bulk/bank email';
+        aiConfidence = 'high';
+      } else {
+        // Step 2: use AI to classify ambiguous emails
+        const bodyPreview = detail.data.snippet || '';
+        const aiResult = await classifyEmail({
+          senderEmail, senderName, subject, bodyPreview,
+          toHeader, ccHeader, accountEmail
+        });
+
+        if (aiResult) {
+          status = aiResult.needs_reply ? 'unreplied' : 'no_reply_needed';
+          aiReason = aiResult.reason;
+          aiConfidence = aiResult.confidence;
+        }
+        // if AI fails → default stays 'unreplied' (safe fallback)
+      }
 
       const emailData = {
         email_id: msg.id,
@@ -164,8 +146,10 @@ async function fetchGmailEmails(accountEmail) {
         body_preview: detail.data.snippet || '',
         email_link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
         received_at: receivedAt,
-        status: systemGenerated ? 'system_generated' : 'unreplied',
-        is_system_generated: systemGenerated
+        status: status,
+        is_system_generated: status === 'no_reply_needed',
+        ai_reason: aiReason,
+        ai_confidence: aiConfidence,
       };
 
       const { error } = await supabase
@@ -175,7 +159,7 @@ async function fetchGmailEmails(accountEmail) {
       if (!error) saved++;
     }
 
-    console.log(`[Gmail] ${accountEmail}: ${saved} emails saved to Supabase`);
+    console.log(`[Gmail] ${accountEmail}: ${saved} saved`);
     await checkGmailReplies(accountEmail, gmail);
     return saved;
 
@@ -185,33 +169,99 @@ async function fetchGmailEmails(accountEmail) {
   }
 }
 
+// ── AI RESCAN: re-classify existing emails ────────────────────────
+async function aiRescanExistingEmails() {
+  console.log('[AI Rescan] Starting bulk re-classification...');
+
+  const { data: emails, error } = await supabase
+    .from('emails')
+    .select('id, sender_email, sender_name, subject, body_preview, account')
+    .eq('status', 'unreplied')
+    .order('received_at', { ascending: false });
+
+  if (error || !emails?.length) {
+    console.log('[AI Rescan] No unreplied emails found or error:', error?.message);
+    return { scanned: 0, changed: 0 };
+  }
+
+  console.log(`[AI Rescan] Scanning ${emails.length} emails...`);
+  let changed = 0;
+
+  for (const email of emails) {
+    // Quick check first
+    const obviouslySystem = isObviouslySystem(email.sender_email, [], false);
+    let status = 'unreplied';
+    let aiReason = null;
+    let aiConfidence = null;
+
+    if (obviouslySystem) {
+      status = 'no_reply_needed';
+      aiReason = 'Auto-detected: system/bulk/bank email';
+      aiConfidence = 'high';
+    } else {
+      const aiResult = await classifyEmail({
+        senderEmail: email.sender_email,
+        senderName: email.sender_name,
+        subject: email.subject,
+        bodyPreview: email.body_preview,
+        toHeader: '',
+        ccHeader: '',
+        accountEmail: email.account
+      });
+
+      if (aiResult && !aiResult.needs_reply) {
+        status = 'no_reply_needed';
+        aiReason = aiResult.reason;
+        aiConfidence = aiResult.confidence;
+      }
+    }
+
+    if (status === 'no_reply_needed') {
+      await supabase
+        .from('emails')
+        .update({
+          status: 'no_reply_needed',
+          is_system_generated: true,
+          ai_reason: aiReason,
+          ai_confidence: aiConfidence,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', email.id);
+      changed++;
+    }
+
+    // Small delay to avoid hitting rate limits
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  console.log(`[AI Rescan] Done. ${changed}/${emails.length} reclassified as no_reply_needed`);
+  return { scanned: emails.length, changed };
+}
+
 // ── CHECK REPLIES ─────────────────────────────────────────────────
 async function checkGmailReplies(accountEmail, gmail) {
   try {
-    const since = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+    const sinceMs = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days
 
-    // ✅ FIXED: No 'q' param on sent list either
     const sentRes = await gmail.users.messages.list({
-      userId: 'me',
-      maxResults: 100,
-      labelIds: ['SENT'],
+      userId: 'me', maxResults: 200, labelIds: ['SENT'],
     });
 
     const sentMessages = sentRes.data.messages || [];
-    if (sentMessages.length === 0) return;
+    if (!sentMessages.length) return;
 
     const threadIds = [];
-    for (const msg of sentMessages.slice(0, 30)) {
+    for (const msg of sentMessages.slice(0, 100)) {
       const detail = await gmail.users.messages.get({
         userId: 'me', id: msg.id, format: 'minimal'
       });
       const internalDate = parseInt(detail.data.internalDate || '0');
-      if (internalDate > since * 1000 && detail.data.threadId) {
+      if (internalDate > sinceMs && detail.data.threadId) {
         threadIds.push(detail.data.threadId);
       }
     }
 
-    if (threadIds.length === 0) return;
+    if (!threadIds.length) return;
 
     const { data: unreplied } = await supabase
       .from('emails')
@@ -220,16 +270,13 @@ async function checkGmailReplies(accountEmail, gmail) {
       .eq('status', 'unreplied')
       .in('thread_id', threadIds);
 
-    if (unreplied && unreplied.length > 0) {
+    if (unreplied?.length) {
       const ids = unreplied.map(e => e.id);
-      await supabase
-        .from('emails')
-        .update({
-          status: 'replied',
-          replied_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .in('id', ids);
+      await supabase.from('emails').update({
+        status: 'replied',
+        replied_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).in('id', ids);
       console.log(`[Gmail] ${accountEmail}: ${ids.length} marked as replied`);
     }
   } catch (err) {
@@ -237,32 +284,21 @@ async function checkGmailReplies(accountEmail, gmail) {
   }
 }
 
-// ── MAIN: FETCH ALL CONNECTED ACCOUNTS ───────────────────────────
+// ── MAIN ──────────────────────────────────────────────────────────
 async function runGmailFetcher() {
   const { data: users, error } = await supabase
-    .from('users')
-    .select('email, gmail_token')
-    .not('gmail_token', 'is', null);
+    .from('users').select('email, gmail_token').not('gmail_token', 'is', null);
 
-  if (error) {
-    console.error('[Gmail] Failed to fetch users from Supabase:', error.message);
-    return;
-  }
+  if (error) { console.error('[Gmail] Supabase error:', error.message); return; }
 
   const envAccounts = (process.env.GMAIL_ACCOUNTS || '').split(',').map(e => e.trim()).filter(Boolean);
-  const supabaseAccounts = (users || []).map(u => u.email);
-  const allAccounts = [...new Set([...supabaseAccounts, ...envAccounts])];
+  const allAccounts = [...new Set([...(users || []).map(u => u.email), ...envAccounts])];
 
-  if (allAccounts.length === 0) {
-    console.log('[Gmail] No connected accounts found');
-    return;
-  }
+  if (!allAccounts.length) { console.log('[Gmail] No connected accounts'); return; }
 
-  console.log(`[Gmail] Fetching ${allAccounts.length} accounts: ${allAccounts.join(', ')}`);
-  for (const account of allAccounts) {
-    await fetchGmailEmails(account);
-  }
+  console.log(`[Gmail] Fetching ${allAccounts.length} accounts`);
+  for (const account of allAccounts) await fetchGmailEmails(account);
   console.log('[Gmail] Done.');
 }
 
-module.exports = { runGmailFetcher, saveTokenToSupabase };
+module.exports = { runGmailFetcher, saveTokenToSupabase, aiRescanExistingEmails };
